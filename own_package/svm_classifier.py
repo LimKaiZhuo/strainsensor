@@ -11,7 +11,7 @@ from own_package.others import print_array_to_excel, create_results_directory
 
 
 class SVMmodel:
-    def __init__(self, fl):
+    def __init__(self, fl, gamma=1):
         """
         Initialises new DNN model based on input features_dim, labels_dim, hparams
         :param features_dim: Number of input feature nodes. Integer
@@ -22,7 +22,7 @@ class SVMmodel:
         self.features_dim = fl.features_dim
         self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
 
-        self.model = SVC(kernel='rbf', degree=8)
+        self.model = SVC(kernel='rbf', gamma=gamma, degree=5)
 
     def train_model(self, fl):
         training_features = fl.features
@@ -40,7 +40,7 @@ class SVMmodel:
         return y_pred
 
 
-def run_classification(read_dir, write_dir):
+def run_classification(read_dir, write_dir, gamma=1):
     # Load fl class
     with open(read_dir + '/grid_data', 'rb') as handle:
         fl = pickle.load(handle)
@@ -58,7 +58,7 @@ def run_classification(read_dir, write_dir):
 
         (ss_fl, i_ss_fl) = fl_tuple  # ss_fl is training fl, i_ss_fl is validation fl
 
-        model = SVMmodel(fl=ss_fl)
+        model = SVMmodel(fl=ss_fl, gamma=gamma)
         model.train_model(fl=ss_fl)
 
         # Evaluation
@@ -96,7 +96,6 @@ def run_classification(read_dir, write_dir):
 
     # Calculating metrics based on complete validation prediction
     mcc = matthews_corrcoef(y_true=val_labels, y_pred=predicted_labels_store)
-    cm = confusion_matrix(y_true=val_labels, y_pred=predicted_labels_store)
 
     # Creating dataframe to print into excel later.
     new_df = np.concatenate((np.array(folds)[:, None],  # Convert 1d list to col. vector

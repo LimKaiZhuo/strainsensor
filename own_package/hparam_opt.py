@@ -1,12 +1,15 @@
 
 import pandas as pd
-
-from skopt import gp_minimize
+import numpy as np
+import gc, pickle
+from skopt import gp_minimize, dummy_minimize
 from skopt.space import Real, Integer
 from skopt.utils import use_named_args
 from skopt.plots import plot_convergence
+from sklearn.metrics import matthews_corrcoef
 # Own Scripts
 from own_package.models.models import create_hparams
+from own_package.svm_classifier import run_classification, SVMmodel
 from .cross_validation import run_skf
 
 
@@ -156,3 +159,71 @@ def hparam_opt(model_mode, loss_mode, norm_mask, labels_norm, loader_file, total
     print('Best hparams :')
     best_hparams = pd.DataFrame(best_hparams)
     print(best_hparams)
+
+
+def grid_hparam_opt(fl, total_run):
+    """
+     names = ['shared_1_l', 'shared_1_h',
+              'shared_2_l', 'shared_2_h',
+              'ts_1_l', 'ts_1_h',
+              'ts_2_l', 'ts_2_h',
+              'epochs_l', 'epochs_h',
+              'l1_l', 'l1_h']
+    :param model_mode:
+    :param loader_file:
+    :param total_run:
+    :param instance_per_run:
+    :param hparam_file:
+    :return:
+    """
+
+    global run_count, best_loss, data_store, fl_store, best_hparams
+    run_count = 0
+    best_loss = 100000
+
+    gamma = Real(low=0.1, high=300, name='gamma')
+    dimensions = [gamma]
+    default_parameters = [30]
+
+    fl_store = fl.create_kf(k_folds=10, shuffle=True)
+
+    @use_named_args(dimensions=dimensions)
+    def fitness(gamma):
+        global run_count, best_loss, fl_store
+        run_count += 1
+
+        # Run k model instance to perform skf
+        predicted_labels_store = []
+        val_labels = []
+        for fold, fl_tuple in enumerate(fl_store):
+
+            (ss_fl, i_ss_fl) = fl_tuple  # ss_fl is training fl, i_ss_fl is validation fl
+
+            model = SVMmodel(fl=ss_fl, gamma=gamma)
+            model.train_model(fl=ss_fl)
+
+            # Evaluation
+            predicted_labels = model.eval(i_ss_fl)
+            predicted_labels_store.extend(predicted_labels)
+            val_labels.extend(i_ss_fl.labels)
+            del model
+            gc.collect()
+
+        # Calculating metrics based on complete validation prediction
+        mcc = matthews_corrcoef(y_true=val_labels, y_pred=predicted_labels_store)
+
+        print('**************************************************************************************************\n'
+              'Run Number {} \n'
+              'Current run MSE {} \n'
+              '*********************************************************************************************'.format(
+            run_count,  mcc))
+        return -mcc
+
+    search_result = gp_minimize(func=fitness,
+                                dimensions=dimensions,
+                                acq_func='EI', # Expected Improvement.
+                                n_calls=total_run,
+                                x0=default_parameters)
+    plot_convergence(search_result)
+    print('Best Loss = {}'.format(search_result.fun))
+    print('Best Gamma = {}'.format(search_result.x[0]))

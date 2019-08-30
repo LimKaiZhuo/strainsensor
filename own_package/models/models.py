@@ -187,7 +187,7 @@ class Kmodel:
             x = model_2(x)
             self.model = Model(inputs=features_in, outputs=[end_node, x])
         elif mode=='ann3':
-            model_1 = ann(self.features_dim, 50, self.hparams)
+            model_1 = ann(self.features_dim, 20, self.hparams)
             x = model_1(features_in)
             end_node = Dense(units=1,
                              activation='linear',
@@ -335,22 +335,25 @@ class Kmodel:
         optimizer = keras.optimizers.adam(clipnorm=1)
         self.model.compile(optimizer=optimizer, loss='mean_squared_error')
         #self.model.summary()
+
     def train_model(self, fl, i_fl,
                     save_name='mt.h5', save_dir='./save/models/',
                     save_mode=False, plot_name=None):
         # Training model
         training_features = fl.features_c_norm
-        training_labels = fl.labels
-        # labels must come in the matrix with rows of examples and columns are end, p1,p2,p3,...
-        end = training_labels[:,0]
-        y = training_labels[:,1:]
-        training_labels = [end, y]
-
         val_features = i_fl.features_c_norm
+
+        training_labels = fl.labels
         val_labels = i_fl.labels
-        end = val_labels[:,0]
-        y = val_labels[:,1:]
-        val_labels = [end, y]
+        # labels must come in the matrix with rows of examples and columns are end, p1,p2,p3,...
+        if fl.labels.shape[1] > 1:
+            end = training_labels[:,0]
+            y = training_labels[:,1:]
+            training_labels = [end, y]
+
+            end = val_labels[:, 0]
+            y = val_labels[:, 1:]
+            val_labels = [end, y]
 
         history = self.model.fit(training_features, training_labels,
                                  validation_data=(val_features, val_labels),

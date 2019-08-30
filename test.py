@@ -7,8 +7,53 @@ import keras.backend as K
 from keras.engine.topology import Layer
 from keras.layers import Input
 from keras.models import Model
-import keras
-from own_package.active_learning.acquisition import features_to_features_input
+import pickle
+import matplotlib.pyplot as plt
+from own_package.active_learning.acquisition import features_to_features_input,\
+    svm_ensemble_prediction, load_svm_ensemble
+from own_package.svm_classifier import SVMmodel
+from own_package.hparam_opt import grid_hparam_opt
+
+def test(selector):
+    if selector == 1:
+        svm_store = load_svm_ensemble('./results/svm_results4/models')
+        x,y = np.meshgrid(np.linspace(0,1,100), np.linspace(0,1,100))
+        composition = np.concatenate((x.reshape(-1, 1), y.reshape(-1, 1)),axis=1)
+        prediction, distance = svm_ensemble_prediction(svm_store, composition)
+        plt.scatter(composition[:, 0], composition[:, 1],c=distance)
+        plt.colorbar()
+        plt.savefig('./results/distance map.png', bbox_inches='tight')
+        plt.close()
+        plt.scatter(composition[:, 0], composition[:, 1],c=prediction)
+        plt.colorbar()
+        plt.savefig('./results/prediction map.png', bbox_inches='tight')
+        plt.close()
+        with open('results/grid full/grid_data', 'rb') as handle:
+            fl = pickle.load(handle)
+        plt.scatter(fl.features[:,0], fl.features[:,1], c=fl.labels)
+        plt.colorbar()
+        plt.savefig('./results/actual map.png', bbox_inches='tight')
+        plt.close()
+
+        model = SVMmodel(fl=fl)
+        model.train_model(fl=fl)
+        prediction, distance = svm_ensemble_prediction([model], composition)
+        plt.scatter(composition[:, 0], composition[:, 1],c=distance)
+        plt.colorbar()
+        plt.savefig('./results/distance map2.png', bbox_inches='tight')
+        plt.close()
+        plt.scatter(composition[:, 0], composition[:, 1],c=prediction)
+        plt.colorbar()
+        plt.savefig('./results/prediction map2.png', bbox_inches='tight')
+        plt.close()
+
+    elif selector == 2:
+        with open('results/grid full/grid_data', 'rb') as handle:
+            fl = pickle.load(handle)
+
+        grid_hparam_opt(fl, 300)
+
+test(2)
 
 '''
 model_store = load_model_ensemble('./save/models')
@@ -60,6 +105,4 @@ output = model.predict(a)
 print(output)
 '''
 
-x=[1,2,3]
-print(str(x))
 

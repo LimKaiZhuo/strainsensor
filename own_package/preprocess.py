@@ -12,6 +12,7 @@ from sklearn.metrics import mean_squared_error
 from scipy.optimize import curve_fit
 from scipy.integrate import simps, trapz
 from scipy.interpolate import CubicSpline, UnivariateSpline
+import csaps
 from own_package.features_labels_setup import Features_labels_grid
 
 
@@ -275,14 +276,17 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points):
     # read_excel_file part
     df = pd.read_excel(read_excel_file, sheet_name='raw', header=[0, 1], index_col=None)
 
+    # take only strain columns and make into a new df
     strain = df.xs('Strain (%)', level='Data', axis=1)
-    strain = strain.values.T.tolist()
+    strain = strain.values.T.tolist()  # .T to ensure that each sub list is along the column rather than rows of the df
+
+    # strain store is a list of 1d ndarray, with each inner list being one set of strain data for one experiment
     strain_store = []
     for single_exp in strain:
         strain_single = [x for x in single_exp if not np.isnan(x)]
-        strain_store.append(strain_single)
-    strain_store = [np.array(x) for x in strain_store]
+        strain_store.append(np.array(strain_single))
 
+    # Similar to the above process, but repeat for relative resistance instead
     r = df.xs('R', level='Data', axis=1)
     r = r.values.T.tolist()
     r_store = []
@@ -294,11 +298,22 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points):
     summary_store = []
     plot_store = []
     for strain, r in zip(strain_store, r_store):
+        eval_x = np.linspace(0, strain[-1], num=discrete_points)  # To evaluate spline at
+        eval_x_plot = np.linspace(0, strain[-1], num=100)  # For plotting
+
+        # csaps implementation
+        fitted_curve = csaps.UnivariateCubicSmoothingSpline(strain, r, smooth=0.2)
+        summary_store.append(np.concatenate([[strain[-1]], fitted_curve(eval_x)]))
+        plot_store.append([eval_x_plot, fitted_curve(eval_x_plot)])
+
+        """
+        Scripy implementation
         spline = CubicSpline(strain, r)
-        eval_x = np.linspace(0, strain[-1], num=discrete_points)
-        eval_x_plot = np.linspace(0, strain[-1], num=100)
+        # Store the processed labels. Labels for one example is 1d ndarray of
+        # [End_point of strain curve, r1, r2, r3, ... , r_end]
         summary_store.append(np.concatenate([[strain[-1]], spline.__call__(eval_x)]))
         plot_store.append([eval_x_plot, spline.__call__(eval_x_plot)])
+        """
 
     # Print to write_excel_file
     excel_name = write_dir + '/results.xlsx'
@@ -308,8 +323,10 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points):
 
     pd_writer = pd.ExcelWriter(excel_name, engine='openpyxl')
 
-    exp_number = np.array(range(np.shape(strain_store)[0])) + 1  # Index to label Exp 1, 2, 3, ...
-    df_write = pd.DataFrame(summary_store, index=exp_number)
+    header = np.array(range(np.shape(strain_store)[0])) + 1  # Index to label Exp 1, 2, 3, ...
+    header = list(header)
+    header[0] = 'e'  # e stands for the end point for each example's strain curve
+    df_write = pd.DataFrame(summary_store, index=header)
     df_write.to_excel(pd_writer)
     pd_writer.save()
     pd_writer.close()

@@ -5,8 +5,9 @@ import numpy as np
 import pandas as pd
 import openpyxl
 from openpyxl import load_workbook
-import os, time, gc
+import os, time, gc, pickle
 from typing import List
+from collections import Counter
 
 from skopt import gp_minimize, gbrt_minimize, forest_minimize
 from skopt.space import Real, Integer, Categorical
@@ -18,6 +19,52 @@ from own_package.others import print_array_to_excel
 
 from own_package.models.hul_model import HULMultiLossLayer
 from own_package.models.models import CrossStitchLayer
+
+
+def load_svm_ensemble(model_directory) -> List:
+    """
+    Load list of trained svm models from a pickle saved file that can be used for prediction later
+    :param model_directory: model directory where the h5 models are saved in. NOTE: All the models in the directory will
+     be loaded. Hence, make sure all the models in there are part of the ensemble and no unwanted models are in the
+     directory
+    :return: [List: svm models]
+    """
+
+    # Loading model names into a list
+    model_name_store = []
+    directory = model_directory
+    for idx, file in enumerate(os.listdir(directory)):
+        filename = os.fsdecode(file)
+        model_name_store.append(directory + '/' + filename)
+    print('Loading the following models from {}. Total models = {}'.format(directory, len(model_name_store)))
+
+    # Loading model class object into a list
+    model_store = []
+    for name in model_name_store:
+        with open(name, "rb") as input_file:
+            model_store.append(pickle.load(input_file))
+        print('Model {} has been loaded'.format(name))
+
+    return model_store
+
+
+def svm_ensemble_prediction(model_store, composition):
+    """
+    Run prediction given one set of feactures_c_norm input, using all the models in model store.
+    :param model_store: List of keras models returned by the def load_model_ensemble
+    :param Composition: ndarray of shape (-1, 2). The columns represents the CNT and PVA composition.
+    :return: List of metrics.
+    """
+    predictions_store = []
+    distance_store = []
+    for model in model_store:
+        predictions_store.append(model.model.predict(composition))
+        distance_store.append(model.model.decision_function(composition))
+
+    predictions = np.round(np.average(np.array(predictions_store), axis=0), decimals=0)
+    distance = np.mean(np.array(distance_store), axis=0)
+
+    return predictions, distance
 
 
 def load_model_ensemble(model_directory) -> List:
@@ -112,11 +159,7 @@ def acquisition_opt(bounds, model_directory, norm_mask, loader_file, total_run,
 
     fl = load_data_to_fl(loader_file, norm_mask=norm_mask)
 
-    space = [Real(low=x[0][0], high=x[0][1], name=x[1]) for x in zip(bounds, fl.features_c_names)] + \
-            [Categorical(categories=x[0], name=x[1]) for x in zip(fl.features_d_space, fl.features_d_names)]
-
-    # Choose mass fraction of components to be 0 and the rest maximum.
-    x0 = [x[0] if idx in (0, 1) else x[1] for idx, x in enumerate(bounds)] + [x[0] for x in fl.features_d_space]
+    space = [Real(low=x[0][0], high=x[0][1], name=x[1]) for x in zip(bounds, fl.features_c_names)]
 
     prediction_mean_store = []
     prediction_std_store = []
