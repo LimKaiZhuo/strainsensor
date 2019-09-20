@@ -80,7 +80,13 @@ def run_skf(model_mode, loss_mode, cv_mode, hparams, norm_mask, labels_norm, loa
         predicted_labels_store.extend(predicted_labels)
         mse_store.append(mse)
         mse_norm_store.append(mse_norm)
-
+        '''
+        if fold == k_folds-1:
+            stringlist = []
+            model.model.summary(print_fn=lambda x: stringlist.append(x))
+            short_model_summary = "\n".join(stringlist)
+            print(short_model_summary)
+        '''
         # Saving model
         if save_model:
             # Set save_model_name
@@ -185,11 +191,8 @@ def run_skf(model_mode, loss_mode, cv_mode, hparams, norm_mask, labels_norm, loa
     print_array_to_excel(np.array(values_full), (3 + start_row, start_col + 1), ws, axis=1)
     ws.cell(2 + start_row, start_col).value = 'Folds avg'
     ws.cell(3 + start_row, start_col).value = 'Overall'
-    if cv_mode == 'skf':
-        ws.cell(1, start_col).value = 'SKF'
-    elif cv_mode == 'loocv':
-        ws.cell(1, start_col).value = 'LOOCV'
     ws.cell(1, start_col).value = loader_file
+    # ws.cell(5 + start_row, start_col).value = short_model_summary
     pd_writer.save()
     pd_writer.close()
     wb.close()

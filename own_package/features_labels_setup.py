@@ -13,7 +13,7 @@ import copy
 import xlrd
 from .others import print_array_to_excel
 
-def load_data_to_fl(data_loader_excel_file, norm_mask):
+def load_data_to_fl(data_loader_excel_file, norm_mask=None):
     df_features = pd.read_excel(data_loader_excel_file, sheet_name='features')
     df_features_d = pd.read_excel(data_loader_excel_file, sheet_name='features_d')
     df_labels = pd.read_excel(data_loader_excel_file, sheet_name='labels')

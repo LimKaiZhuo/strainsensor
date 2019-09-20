@@ -1,7 +1,8 @@
 
 import pandas as pd
 import numpy as np
-import gc, pickle
+import gc, pickle, time
+from openpyxl import load_workbook
 from skopt import gp_minimize, dummy_minimize
 from skopt.space import Real, Integer
 from skopt.utils import use_named_args
@@ -11,10 +12,10 @@ from sklearn.metrics import matthews_corrcoef
 from own_package.models.models import create_hparams
 from own_package.svm_classifier import run_classification, SVMmodel
 from .cross_validation import run_skf
+from own_package.others import print_array_to_excel
 
-
-def hparam_opt(model_mode, loss_mode, norm_mask, labels_norm, loader_file, total_run, instance_per_run=3,
-               hparam_file='./excel/hparams_opt.xlsx', plot_dir=None):
+def hparam_opt(model_mode, loss_mode, norm_mask, labels_norm, loader_file, write_dir, total_run, instance_per_run=3,
+               plot_dir=None):
     """
      names = ['shared_1_l', 'shared_1_h',
               'shared_2_l', 'shared_2_h',
@@ -30,7 +31,9 @@ def hparam_opt(model_mode, loss_mode, norm_mask, labels_norm, loader_file, total
     :return:
     """
 
-    global run_count, best_loss, data_store, fl, best_hparams
+    hparam_file = write_dir + '/skf_results.xlsx'
+
+    global run_count, best_loss, data_store, fl
     run_count = 0
     best_loss = 100000
 
@@ -149,16 +152,79 @@ def hparam_opt(model_mode, loss_mode, norm_mask, labels_norm, loader_file, total
             print()
             return loss
 
+    elif model_mode == 'conv1':
+        start_time = time.time()
+        bounds = [[5, 200, ],
+                  [5, 200, ],
+                  [5, 200, ],
+                  [1, 64, ],
+                  [50, 3000]]
+        shared = Integer(low=bounds[0][0], high=bounds[0][1], name='shared')
+        end = Integer(low=bounds[1][0], high=bounds[1][1], name='end')
+        pre = Integer(low=bounds[2][0], high=bounds[2][1], name='pre')
+        filters = Integer(low=bounds[3][0], high=bounds[3][1], name='filters')
+        epochs = Integer(low=bounds[4][0], high=bounds[4][1], name='epochs')
+        dimensions = [shared, end, pre, filters, epochs]
+        default_parameters = [5, 5, 5, 1, 100]
+
+        @use_named_args(dimensions=dimensions)
+        def fitness(shared, end, pre, filters, epochs):
+            global run_count, best_loss, data_store, fl
+            run_count += 1
+            hparams = create_hparams(shared=shared, end=end, pre=pre, filters=filters, epochs=epochs,
+                                     reg_l1=0.05,
+                                     verbose=0)
+
+            mse_avg = 0
+
+            for cnt in range(instance_per_run):
+                if plot_dir:
+                    plot_name = '{}/{}_{}_run_{}_count_{}'.format(plot_dir, model_mode, loss_mode,run_count, cnt)
+                else:
+                    plot_name = None
+                mse = run_skf(model_mode=model_mode, loss_mode=loss_mode, cv_mode='skf', hparams=hparams,
+                              norm_mask=norm_mask, labels_norm=labels_norm,
+                              loader_file=loader_file,
+                              skf_file=hparam_file, skf_sheet='_' + str(run_count) + '_' + str(cnt),
+                              k_folds=10, k_shuffle=True,
+                              save_model_name='_' + str(run_count) + '_' + str(cnt), save_model=False,
+                              save_model_dir='./save/models',
+                              plot_name=plot_name)
+                mse_avg += mse
+
+            mse_avg = mse_avg / instance_per_run
+            loss = mse_avg
+            end_time = time.time()
+            print('**************************************************************************************************\n'
+                  'Run Number {} \n'
+                  'Instance per run {} \n'
+                  'Current run MSE {} \n'
+                  'Time Taken: {}\n'
+                  '*********************************************************************************************'.format(
+                run_count, instance_per_run, mse_avg, end_time-start_time))
+            return loss
+
     search_result = gp_minimize(func=fitness,
                                 dimensions=dimensions,
                                 acq_func='EI',  # Expected Improvement.
                                 n_calls=total_run,
                                 x0=default_parameters)
-    plot_convergence(search_result)
-    print('Best Loss = {}'.format(search_result.fun))
-    print('Best hparams :')
-    best_hparams = pd.DataFrame(best_hparams)
-    print(best_hparams)
+
+
+    wb = load_workbook(write_dir+'/hparam_results.xlsx')
+    hparam_store = np.array(search_result.x_iters)
+    results = np.array(search_result.func_vals)
+    index = np.arange(total_run)
+    toprint = np.concatenate((index.reshape(-1,1),hparam_store, results.reshape(-1, 1)), axis=1)
+    header = np.array(['index', 'shared', 'end', 'pre', 'filters', 'epochs', 'mse'])
+    toprint = np.concatenate((header.reshape(1,-1), toprint), axis=0)
+    sheetname = wb.sheetnames[-1]
+    ws = wb[sheetname]
+    print_array_to_excel(toprint, (1, 1), ws, axis=2)
+    wb.save(write_dir+'/hparam_results.xlsx')
+    wb.close()
+
+
 
 
 def grid_hparam_opt(fl, total_run):

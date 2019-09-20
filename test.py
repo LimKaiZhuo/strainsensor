@@ -16,7 +16,7 @@ from own_package.hparam_opt import grid_hparam_opt
 
 def test(selector):
     if selector == 1:
-        svm_store = load_svm_ensemble('./results/svm_results4/models')
+        svm_store = load_svm_ensemble('./results/svm_results/models')
         x,y = np.meshgrid(np.linspace(0,1,100), np.linspace(0,1,100))
         composition = np.concatenate((x.reshape(-1, 1), y.reshape(-1, 1)),axis=1)
         prediction, distance = svm_ensemble_prediction(svm_store, composition)
@@ -35,7 +35,7 @@ def test(selector):
         plt.savefig('./results/actual map.png', bbox_inches='tight')
         plt.close()
 
-        model = SVMmodel(fl=fl)
+        model = SVMmodel(fl=fl, gamma=130)
         model.train_model(fl=fl)
         prediction, distance = svm_ensemble_prediction([model], composition)
         plt.scatter(composition[:, 0], composition[:, 1],c=distance)
@@ -53,7 +53,7 @@ def test(selector):
 
         grid_hparam_opt(fl, 300)
 
-test(2)
+test(1)
 
 '''
 model_store = load_model_ensemble('./save/models')

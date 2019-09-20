@@ -11,7 +11,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 from scipy.optimize import curve_fit
 from scipy.integrate import simps, trapz
-from scipy.interpolate import CubicSpline, UnivariateSpline
+from scipy.interpolate import CubicSpline, UnivariateSpline, PchipInterpolator
 import csaps
 from own_package.features_labels_setup import Features_labels_grid
 
@@ -272,7 +272,7 @@ def read_excel_data(read_excel_file, write_excel_file, plot_directory, mode, cp0
             plt.close()
 
 
-def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points):
+def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, spline_selector):
     # read_excel_file part
     df = pd.read_excel(read_excel_file, sheet_name='raw', header=[0, 1], index_col=None)
 
@@ -301,19 +301,25 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points):
         eval_x = np.linspace(0, strain[-1], num=discrete_points)  # To evaluate spline at
         eval_x_plot = np.linspace(0, strain[-1], num=100)  # For plotting
 
-        # csaps implementation
-        fitted_curve = csaps.UnivariateCubicSmoothingSpline(strain, r, smooth=0.2)
-        summary_store.append(np.concatenate([[strain[-1]], fitted_curve(eval_x)]))
-        plot_store.append([eval_x_plot, fitted_curve(eval_x_plot)])
+        if spline_selector == 1:
+            spline = PchipInterpolator(strain, r)
+            # Store the processed labels. Labels for one example is 1d ndarray of
+            # [End_point of strain curve, r1, r2, r3, ... , r_end]
+            summary_store.append(np.concatenate([[strain[-1]], spline.__call__(eval_x)]))
+            plot_store.append([eval_x_plot, spline.__call__(eval_x_plot)])
+        elif spline_selector == 2:
+            # csaps implementation
+            fitted_curve = csaps.UnivariateCubicSmoothingSpline(strain, r, smooth=0.7)
+            summary_store.append(np.concatenate([[strain[-1]], fitted_curve(eval_x)]))
+            plot_store.append([eval_x_plot, fitted_curve(eval_x_plot)])
+        elif spline_selector == 3:
+        # Scripy implementation
+            spline = CubicSpline(strain, r)
+            # Store the processed labels. Labels for one example is 1d ndarray of
+            # [End_point of strain curve, r1, r2, r3, ... , r_end]
+            summary_store.append(np.concatenate([[strain[-1]], spline.__call__(eval_x)]))
+            plot_store.append([eval_x_plot, spline.__call__(eval_x_plot)])
 
-        """
-        Scripy implementation
-        spline = CubicSpline(strain, r)
-        # Store the processed labels. Labels for one example is 1d ndarray of
-        # [End_point of strain curve, r1, r2, r3, ... , r_end]
-        summary_store.append(np.concatenate([[strain[-1]], spline.__call__(eval_x)]))
-        plot_store.append([eval_x_plot, spline.__call__(eval_x_plot)])
-        """
 
     # Print to write_excel_file
     excel_name = write_dir + '/results.xlsx'

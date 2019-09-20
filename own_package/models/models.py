@@ -14,9 +14,10 @@ import pprint
 import time
 from typing import List, Dict
 
-def create_hparams(shared_layers=None, ts_layers=None, cs_layers=None,
+def create_hparams(shared_layers=0, ts_layers=0, cs_layers=0,
                    learning_rate=0.001, optimizer='Adam', epochs=100, batch_size=64,
                    activation='relu',
+                   shared = 10, end = 10, pre = 10, filters = 10,
                    reg_l1=0, reg_l2=0,
                    verbose=1):
     """
@@ -26,11 +27,13 @@ def create_hparams(shared_layers=None, ts_layers=None, cs_layers=None,
     names = ['shared_layers', 'ts_layers', 'cs_layers',
              'learning_rate', 'optimizer', 'epochs', 'batch_size',
              'activation',
+             'shared', 'end', 'pre', 'filters',
              'reg_l1', 'reg_l2',
              'verbose']
     values = [shared_layers, ts_layers, cs_layers,
               learning_rate, optimizer, epochs, batch_size,
               activation,
+              shared, end, pre, filters,
               reg_l1, reg_l2,
               verbose]
     hparams = dict(zip(names, values))
@@ -200,19 +203,19 @@ class Kmodel:
             x = model_2(x)
             self.model = Model(inputs=features_in, outputs=[end_node, x])
         elif mode=='conv1':
-            x = Dense(units=20,
+            x = Dense(units=hparams['shared'],
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
-                      name='Shared_e_' + str(1))(features_in)
-            x = Dense(units=20,
+                      name='shared' + str(1))(features_in)
+            x = Dense(units=hparams['shared'],
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
-                      name='Shared_e_' + str(2))(x)
-            end = Dense(units=20,
+                      name='shared' + str(2))(x)
+            end = Dense(units=hparams['end'],
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Dense_e_' + str(1))(x)
-            end = Dense(units=20,
+            end = Dense(units=hparams['end'],
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Dense_e_' + str(2))(end)
@@ -221,7 +224,7 @@ class Kmodel:
                              kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                              name='output_layer')(end)
 
-            x = Dense(units=20,
+            x = Dense(units=hparams['pre'],
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Pre_' + str(1))(x)
@@ -229,16 +232,16 @@ class Kmodel:
             x = Dense(units=20,
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
-                      name='Pre_' + str(2))(x)
+                      name='Pre_set_20')(x)
             #x = BatchNormalization()(x)
 
             x = Reshape(target_shape=(20, 1))(x)
-            x = Conv1D(filters=16, kernel_size=3, strides=1, padding='same', activation='relu')(x)
+            x = Conv1D(filters=hparams['filters'], kernel_size=3, strides=1, padding='same', activation='relu')(x)
             #x = BatchNormalization()(x)
-            x = Conv1D(filters=32, kernel_size=3, strides=1, padding='same', activation='relu')(x)
-            x = Conv1D(filters=64, kernel_size=3, strides=1, padding='same', activation='relu')(x)
-            #x = Permute((2,1))(x)
-            #x = GlobalAveragePooling1D()(x)
+            x = Conv1D(filters=hparams['filters']*2, kernel_size=3, strides=1, padding='same', activation='relu')(x)
+            x = Conv1D(filters=hparams['filters']*4, kernel_size=3, strides=1, padding='same', activation='relu')(x)
+            # x = Permute((2,1))(x)
+            # x = GlobalAveragePooling1D()(x)
             x = TimeDistributed(Dense(1, activation='linear'))(x)
             x = Reshape(target_shape=(20,))(x)
 
@@ -246,19 +249,19 @@ class Kmodel:
             self.model = Model(inputs=features_in, outputs=[end_node, x])
 
         elif mode=='conv2':
-            x = Dense(units=20,
+            x = Dense(units=10,
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Shared_e_' + str(1))(features_in)
-            x = Dense(units=20,
+            x = Dense(units=10,
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Shared_e_' + str(2))(x)
-            end = Dense(units=20,
+            end = Dense(units=10,
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Dense_e_' + str(1))(x)
-            end = Dense(units=20,
+            end = Dense(units=10,
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Dense_e_' + str(2))(end)
@@ -272,15 +275,11 @@ class Kmodel:
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Pre_' + str(1))(x)
-            x = Dense(units=80,
-                      activation=hparams['activation'],
-                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
-                      name='Pre_' + str(2))(x)
             x = Reshape(target_shape=(80, 1))(x)
-            x = Conv1D(filters=32, kernel_size=3, strides=1, padding='same', activation='relu')(x)
+            x = Conv1D(filters=8, kernel_size=3, strides=1, padding='same', activation='relu')(x)
 
             x = MaxPooling1D(pool_size=2)(x)
-            x = Conv1D(filters=64, kernel_size=3, strides=1, padding='same', activation='relu')(x)
+            x = Conv1D(filters=16, kernel_size=3, strides=1, padding='same', activation='relu')(x)
             x = MaxPooling1D(pool_size=2)(x)
             #x = Permute((2,1))(x)
             #x = GlobalAveragePooling1D()(x)
