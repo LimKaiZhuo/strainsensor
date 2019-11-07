@@ -13,7 +13,8 @@ import copy
 import xlrd
 from .others import print_array_to_excel
 
-def load_data_to_fl(data_loader_excel_file, norm_mask=None):
+
+def load_data_to_fl(data_loader_excel_file, normalise_labels, norm_mask=None):
     df_features = pd.read_excel(data_loader_excel_file, sheet_name='features')
     df_features_d = pd.read_excel(data_loader_excel_file, sheet_name='features_d')
     df_labels = pd.read_excel(data_loader_excel_file, sheet_name='labels')
@@ -45,22 +46,28 @@ def load_data_to_fl(data_loader_excel_file, norm_mask=None):
 
         # Combine features_c with features_dc
         features_dc_store = np.array(features_dc_store)
-        features_c = np.concatenate((features_c,features_dc_store), axis=1)
+        features_c = np.concatenate((features_c, features_dc_store), axis=1)
         features_c_names = np.concatenate((features_c_names, np.array(features_dc_names)), axis=0)
     else:
         lookup_df_store = None
 
     labels = df_labels.values
+    labels_end = labels[:,0][:,None]  # Make 2D array
+    labels = labels[:,2:]
     labels_names = df_labels.columns.values
 
-    fl = Features_labels(features_c, labels, features_c_names, labels_names, norm_mask=norm_mask,
+    fl = Features_labels(features_c, labels_end, labels, features_c_names, labels_names, norm_mask=norm_mask,
+                         normalise_labels=normalise_labels,
                          features_d_df=df_features_d, lookup_df=lookup_df_store)
 
     return fl
 
+
 class Features_labels:
-    def __init__(self, features_c, labels, features_c_names=None, labels_names=None, scaler=None,
-                 norm_mask=None, labels_scaler=None, idx=None, features_d_df=None, lookup_df=None):
+    def __init__(self, features_c, labels_end, labels, features_c_names=None, labels_names=None, scaler=None,
+                 norm_mask=None, normalise_labels=False, labels_scaler=None, labels_end_scaler=None,
+                 idx=None, features_d_df=None,
+                 lookup_df=None):
         """
         Creates fl class with a lot useful attributes
         :param features_c: Continuous features. Np array, no. of examples x continous features
@@ -91,20 +98,20 @@ class Features_labels:
 
         if norm_mask:
             self.norm_mask = norm_mask
-            mask = np.array([1]*self.features_c_dim, dtype=np.bool)
+            mask = np.array([1] * self.features_c_dim, dtype=np.bool)
             mask[norm_mask] = 0
-            if features_c[:,mask].shape[1] == 0:
+            if features_c[:, mask].shape[1] == 0:
                 self.scaler = 0
                 self.features_c_norm = features_c
             else:
                 if scaler is None:
                     # If scaler is None, means normalize the data with all input data
                     self.scaler = MinMaxScaler()
-                    self.scaler.fit(features_c[:,mask])  # Setting up scaler
+                    self.scaler.fit(features_c[:, mask])  # Setting up scaler
                 else:
                     # If scaler is given, means normalize the data with the given scaler
                     self.scaler = scaler
-                features_c_norm = self.scaler.transform(features_c[:,mask])  # Normalizing features_c
+                features_c_norm = self.scaler.transform(features_c[:, mask])  # Normalizing features_c
                 self.features_c_norm = features_c
                 self.features_c_norm[:, mask] = features_c_norm
         else:
@@ -120,34 +127,45 @@ class Features_labels:
             self.features_c_norm = self.scaler.transform(features_c)  # Normalizing features_c
 
         # Setting up labels
+        self.labels_end = labels_end
         self.labels = labels
         if len(labels.shape) == 2:
             self.labels_dim = labels.shape[1]
         else:
             self.labels_dim = 1
+
+        # Label name is size 2 larger than self.labels as it includes the col name for end point and the first pt.
         self.labels_names = labels_names
 
-        # Normalizing labels
-        if labels_scaler is None:
-            self.labels_scaler = MinMaxScaler(feature_range=(0,100))
-            self.labels_scaler.fit(labels)
+        # Normalizing labels for the 19 labels going into the neural network
+        if normalise_labels:
+            self.normalise_labels = normalise_labels
+            if labels_scaler is None:
+                self.labels_scaler = MinMaxScaler(feature_range=(0, 1))
+                self.labels_scaler.fit(labels)
+                self.labels_end_scaler = MinMaxScaler(feature_range=(0, 1))
+                self.labels_end_scaler.fit(labels_end)
+            else:
+                self.labels_scaler = labels_scaler
+                self.labels_end_scaler = labels_end_scaler
+            self.labels_norm = self.labels_scaler.transform(labels)
+            self.labels_end_norm = self.labels_end_scaler.transform(labels_end)
         else:
-            self.labels_scaler = labels_scaler
-        self.labels_norm = self.labels_scaler.transform(labels)
-
-        # Standard deviation of labels
-        self.labels_std = np.std(self.labels, axis=0)
-        self.labels_norm_std = np.std(self.labels_norm, axis=0)
+            self.normalise_labels = False
+            self.labels_scaler = None
+            self.labels_norm = None
+            self.labels_end_scaler = None
+            self.labels_end_norm = None
 
     def apply_scaling(self, features_c):
         if features_c.ndim == 1:
-            features_c = features_c.reshape((1,-1))
+            features_c = features_c.reshape((1, -1))
         if self.norm_mask:
             norm_mask = self.norm_mask
-            mask = np.array([1]*self.features_c_dim, dtype=np.bool)
+            mask = np.array([1] * self.features_c_dim, dtype=np.bool)
             mask[norm_mask] = 0
             features_c_norm = np.copy(features_c)
-            features_c_norm[:,mask] = self.scaler.transform(features_c[:,mask])
+            features_c_norm[:, mask] = self.scaler.transform(features_c[:, mask])
         else:
             features_c_norm = self.scaler.transform(features_c)
         return features_c_norm
@@ -178,11 +196,14 @@ class Features_labels:
             xval_idx = self.idx[val_indices]
             xtrain, xval = self.features_c[train_indices], self.features_c[val_indices]
             ytrain, yval = self.labels[train_indices], self.labels[val_indices]
+            yendtrain, yendval = self.labels_end[train_indices], self.labels_end[val_indices]
             fl_store.append(
-                (Features_labels(xtrain, ytrain, scaler=self.scaler, labels_scaler=self.labels_scaler,
-                                 norm_mask=self.norm_mask),
-                 Features_labels(xval, yval, idx=xval_idx, scaler=self.scaler, labels_scaler=self.labels_scaler,
-                                 norm_mask=self.norm_mask))
+                (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
+                                 labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names),
+                 Features_labels(xval, yendval, yval, idx=xval_idx, scaler=self.scaler, normalise_labels=self.normalise_labels,
+                                 labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names))
             )
         return fl_store
 

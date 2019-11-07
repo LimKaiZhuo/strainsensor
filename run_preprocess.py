@@ -11,7 +11,7 @@ def run_preprocess(select):
                         normalise_r=False, mode='multipoly_cutoff', plot_directory=write_dir + '/plots', poly=2)
     elif select == 2:
         write_dir = create_results_directory('./results/preprocess')
-        read_excel_data_to_spline(read_excel_file='./excel/Raw_Data_Round2_removed_outlier.xlsx',
+        read_excel_data_to_spline(read_excel_file='./excel/Raw_Data_Round6.xlsx',
                                   write_dir=write_dir, discrete_points=20, spline_selector=1)
 
     elif select == 3:

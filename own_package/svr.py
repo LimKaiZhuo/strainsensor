@@ -1,0 +1,219 @@
+from sklearn.svm import SVR
+from sklearn.metrics import classification_report, confusion_matrix, matthews_corrcoef, mean_squared_error
+import pickle, time, gc
+import numpy as np
+import pandas as pd
+from pandas import Series
+import openpyxl
+from openpyxl import load_workbook
+import matplotlib.pyplot as plt
+
+from keras.models import Sequential, Model
+from keras.layers import Dense, Dropout, merge, Input, concatenate, Reshape, Permute, LSTM,\
+    TimeDistributed, RepeatVector, MaxPooling1D, BatchNormalization
+import keras
+
+from own_package.others import print_array_to_excel, create_results_directory
+from own_package.models.models import ann
+
+class ANNmodel:
+    def __init__(self, fl, hparams):
+        """
+        Initialises new DNN model based on input features_dim, labels_dim, hparams
+        :param features_dim: Number of input feature nodes. Integer
+        :param labels_dim: Number of output label nodes. Integer
+        :param hparams: Dict containing hyperparameter information. Dict can be created using create_hparams() function.
+        hparams includes: hidden_layers: List containing number of nodes in each hidden layer. [10, 20] means 10 then 20 nodes.
+        """
+        self.features_dim = fl.features_c_dim
+        self.labels_dim = 1
+        self.hparams = hparams
+        self.normalise_labels = fl.normalise_labels
+        self.labels_end_scaler = fl.labels_end_scaler
+        features_in = Input(shape=(self.features_dim,), name='main_features_c_input')
+        model = ann(self.features_dim, self.labels_dim, self.hparams)
+        x = model(features_in)
+        self.model = Model(inputs=features_in, outputs=x)
+        optimizer = keras.optimizers.adam(clipnorm=1)
+        self.model.compile(optimizer=optimizer, loss='mean_squared_error')
+
+    def train_model(self, fl, i_fl,
+                    save_name='mt.h5', save_dir='./save/models/',
+                    save_mode=False, plot_name=None):
+        # Training model
+        training_features = fl.features_c_norm
+        val_features = i_fl.features_c_norm
+        if self.normalise_labels:
+            training_labels = fl.labels_end_norm
+            val_labels = i_fl.labels_end_norm
+        else:
+            training_labels = fl.labels_end
+            val_labels = i_fl.labels_end
+        # labels must come in the matrix with rows of examples and columns are end, p1,p2,p3,...
+
+        if plot_name:
+            history = self.model.fit(training_features, training_labels,
+                                     validation_data=(val_features, val_labels),
+                                     epochs=self.hparams['epochs'],
+                                     batch_size=self.hparams['batch_size'],
+                                     verbose=self.hparams['verbose'])
+            # summarize history for accuracy
+            plt.semilogy(history.history['loss'], label=['train'])
+            plt.semilogy(history.history['val_loss'], label=['test'])
+            plt.plot([],[],' ',label='Final train: {:.3e}'.format(history.history['loss'][-1]))
+            plt.plot([], [], ' ', label='Final val: {:.3e}'.format(history.history['val_loss'][-1]))
+            plt.title('model loss')
+            plt.ylabel('loss')
+            plt.xlabel('epoch')
+            plt.legend(loc='upper right')
+            plt.savefig(plot_name, bbox_inches='tight')
+            plt.close()
+        else:
+            self.model.fit(training_features, training_labels,
+                           epochs=self.hparams['epochs'],
+                           batch_size=self.hparams['batch_size'],
+                           verbose=self.hparams['verbose'])
+        # Debugging check to see features and prediction
+        # pprint.pprint(training_features)
+        # pprint.pprint(self.model.predict(training_features))
+        # pprint.pprint(training_labels)
+        # Saving Model
+        if save_mode:
+            self.model.save(save_dir + save_name)
+        return self.model
+
+    def eval(self, eval_fl):
+        features = eval_fl.features_c_norm
+        if self.normalise_labels:
+            predictions = eval_fl.labels_end_scaler.inverse_transform(self.model.predict(features))
+        else:
+            predictions = self.model.predict(features)
+        return predictions
+
+class SVRmodel:
+    def __init__(self, fl, gamma=1):
+        """
+        Initialises new DNN model based on input features_dim, labels_dim, hparams
+        :param features_dim: Number of input feature nodes. Integer
+        :param labels_dim: Number of output label nodes. Integer
+        :param hparams: Dict containing hyperparameter information. Dict can be created using create_hparams() function.
+        hparams includes: hidden_layers: List containing number of nodes in each hidden layer. [10, 20] means 10 then 20 nodes.
+        """
+        self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
+        self.fl = fl
+        self.model = SVR(kernel='rbf', gamma=gamma, degree=5)
+
+    def train_model(self, fl):
+        training_features = fl.features_c_norm
+        training_labels = fl.labels_end_norm
+
+        self.model.fit(training_features, training_labels)
+
+        return self.model
+
+    def eval(self, eval_fl):
+        features = eval_fl.features_c_norm
+
+        y_pred = self.model.predict(features)[:,None]
+        y_pred = self.fl.labels_end_scaler.inverse_transform(y_pred)
+        return y_pred
+
+
+def run_svr(fl_store, write_dir, excel_dir, model_selector, gamma=1, hparams=None, save_name=None):
+    # Run k model instance to perform skf
+    predicted_labels_store = []
+    folds = []
+    val_idx = []
+    val_features = []
+    val_labels = []
+    for fold, fl_tuple in enumerate(fl_store):
+        instance_start = time.time()
+
+        (ss_fl, i_ss_fl) = fl_tuple  # ss_fl is training fl, i_ss_fl is validation fl
+        if model_selector=='svr':
+            model = SVRmodel(fl=ss_fl, gamma=gamma)
+            model.train_model(fl=ss_fl)
+        elif model_selector=='ann':
+            model = ANNmodel(fl=ss_fl, hparams=hparams)
+            #  plot_name='{}/plots/{}.png'.format(write_dir,fold)
+            model.train_model(fl=ss_fl, i_fl=i_ss_fl)
+        else:
+            raise KeyError('model selector argument is not one of the available models.')
+
+        # Evaluation
+        predicted_labels = model.eval(i_ss_fl)
+        predicted_labels_store.extend(predicted_labels.flatten().tolist())
+
+        # Saving model
+        save_model_name = '{}/models/{}_{}_{}'.format(write_dir, save_name, model_selector, str(fold + 1))
+        print('Saving instance {} model in {}'.format(fold + 1, save_model_name))
+        if model_selector == 'svr':
+            with open(save_model_name, 'wb') as handle:
+                pickle.dump(model, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        elif model_selector == 'ann':
+            model.model.save(save_model_name + '.h5')
+
+        del model
+        gc.collect()
+
+        # Preparing data to put into new_df that consists of all the validation dataset and its predicted labels
+        folds.extend([fold] * i_ss_fl.count)  # Make a col that contains the fold number for each example
+        if len(val_features):
+            val_features = np.concatenate((val_features, i_ss_fl.features_c),
+                                            axis=0)
+        else:
+            val_features = i_ss_fl.features_c
+
+        val_labels.extend(i_ss_fl.labels_end.flatten().tolist())
+        val_idx.extend(i_ss_fl.idx)
+
+        # Printing one instance summary.
+        instance_end = time.time()
+        print(
+            '\nFor k-fold run {} out of {}. Each fold has {} examples. Time taken for '
+            'instance = {}\n'
+            '####################################################################################################'
+                .format(fold + 1, 10, i_ss_fl.count, instance_end - instance_start))
+
+
+    # Calculating metrics based on complete validation prediction
+    mse = mean_squared_error(y_true=val_labels, y_pred=predicted_labels_store)
+
+    # Creating dataframe to print into excel later.
+    new_df = np.concatenate((np.array(folds)[:, None],  # Convert 1d list to col. vector
+                             val_features,
+                             np.array(val_labels)[:,None],
+                             np.array(predicted_labels_store)[:,None])
+                            , axis=1)
+    headers = ['folds'] + \
+              list(map(str, fl_store[0][0].features_c_names)) + \
+              ['End', 'P_End']
+
+    # val_idx is the original position of the example in the data_loader
+    new_df = pd.DataFrame(data=new_df, columns=headers, index=val_idx)
+
+    skf_file = excel_dir
+    print('Writing into' + skf_file)
+    wb = load_workbook(skf_file)
+    wb.create_sheet(model_selector)
+    sheet_name = wb.sheetnames[-1]
+
+    # Writing results dataframe
+    pd_writer = pd.ExcelWriter(skf_file, engine='openpyxl')
+    pd_writer.book = wb
+    pd_writer.sheets = dict((ws.title, ws) for ws in wb.worksheets)
+    new_df.to_excel(pd_writer, sheet_name=sheet_name)
+    start_col = len(new_df.columns) + 4
+
+    # Writing other subset split, instance per run, and bounds
+    ws = wb.sheetnames
+    ws = wb[ws[-1]]
+    headers = ['mse']
+    values = [mse]
+    print_array_to_excel(np.array(headers), (1, start_col + 1), ws, axis=1)
+    print_array_to_excel(np.array(values), (2, start_col + 1), ws, axis=1)
+    pd_writer.save()
+    pd_writer.close()
+    wb.close()
+
+    return mse

@@ -331,7 +331,6 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
 
     header = np.array(range(np.shape(strain_store)[0])) + 1  # Index to label Exp 1, 2, 3, ...
     header = list(header)
-    header[0] = 'e'  # e stands for the end point for each example's strain curve
     df_write = pd.DataFrame(summary_store, index=header)
     df_write.to_excel(pd_writer)
     pd_writer.save()

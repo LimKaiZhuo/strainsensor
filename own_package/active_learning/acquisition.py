@@ -87,10 +87,15 @@ def load_model_ensemble(model_directory) -> List:
             model_name_store.append(directory + '/' + filename)
     print('Loading the following models from {}. Total models = {}'.format(directory, len(model_name_store)))
 
+    def weighted_mse(y_true, y_pred):
+        # loss_weights = np.sqrt(np.arange(1, 20))
+        loss_weights = np.arange(1, 20)
+        return K.mean(K.square(y_pred - y_true) * loss_weights, axis=-1)
+
     # Loading model class object into a list
     model_store = []
     for name in model_name_store:
-        model_store.append(load_model(name, custom_objects={'CrossStitchLayer': CrossStitchLayer}))
+        model_store.append(load_model(name, custom_objects={'weighted_mse': weighted_mse}))
         print('Model {} has been loaded'.format(name))
 
     return model_store
@@ -105,8 +110,7 @@ def model_ensemble_prediction(model_store, features_c_norm):
     """
     predictions_store = []
     for model in model_store:
-        predictions = model.predict(features_c_norm)
-        predictions = np.concatenate((predictions[0], predictions[1]), axis=1).reshape((-1)).tolist()
+        predictions = model.predict(features_c_norm).tolist()
 
         '''
         predictions = model.predict(features_c_norm)
@@ -140,7 +144,8 @@ def features_to_features_input(fl, features_c, features_d) -> np.ndarray:
     return np.array(features_c.tolist() + features_dc_store)
 
 
-def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_run, batch_runs=1, norm_mask=None,
+def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_run, normalise_labels,batch_runs=1,
+                    norm_mask=None,
                     acquisition_file='./excel/acquisition_opt.xlsx'):
     """
     bounds = [[5, 200, ],
@@ -174,7 +179,7 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
     model_store = load_model_ensemble(model_directory)
     svm_store = load_svm_ensemble(svm_directory)
 
-    fl = load_data_to_fl(loader_file, norm_mask=norm_mask)
+    fl = load_data_to_fl(loader_file, norm_mask=norm_mask, normalise_labels=normalise_labels)
 
     space = [Real(low=bounds[0][0], high=bounds[0][1], name='CNT'),
              Real(low=bounds[1][0], high=bounds[1][1], name='PVA'),
@@ -202,7 +207,7 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
             # SVM Check
             p_class, distance = svm_ensemble_prediction(svm_store, features[0:2])
 
-            if p_class == 0:
+            if distance.item() < 0:
                 # Distance should be negative value when SVM assigns class 0. Hence a_score will be negative.
                 # The more negative the a_score is, the further the composition is from the hyperplane,
                 # hence, the less likely the optimizer will select examples with class 0.
@@ -245,8 +250,8 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
                 # Storing intermediate results into list to print into excel later
                 l2_dist_store.append(l2_distance)
                 disagreement_store.append(disagreement)
-                prediction_mean_store.append(prediction_mean)
-                prediction_std_store.append(prediction_std)
+                prediction_mean_store.append(prediction_mean.flatten().tolist())
+                prediction_std_store.append(prediction_std.flatten().tolist())
             return -a_score
 
 
@@ -265,11 +270,10 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
         plot_convergence(search_result)
         x_iters = search_result.x_iters
         func_val = -search_result.func_vals
-        best_std = -search_result.fun
         best_x = search_result.x
 
-        p_mean_name = np.array(['Pmean_' + str(x) for x in fl.labels_names])
-        p_std_name = np.array(['Pstd_' + str(x) for x in fl.labels_names])
+        p_mean_name = np.array(['Pmean_' + str(x) for x in list(map(str, np.arange(2,21)))])
+        p_std_name = np.array(['Pstd_' + str(x) for x in list(map(str, np.arange(2,21)))])
 
         data = np.concatenate((np.array(x_iters),
                                func_val.reshape((-1, 1)),

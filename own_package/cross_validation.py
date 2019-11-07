@@ -14,7 +14,7 @@ from own_package.models.hul_model import HULMTmodel
 from .others import print_array_to_excel
 from .features_labels_setup import load_data_to_fl
 
-def run_skf(model_mode, loss_mode, cv_mode, hparams, norm_mask, labels_norm, loader_file,
+def run_skf(model_mode, loss_mode, fl, fl_store, hparams, norm_mask, normalise_labels,labels_norm,
             skf_file,
             skf_sheet=None,
             k_folds=10, k_shuffle=True, save_model=False, save_model_name=None, save_model_dir=None,
@@ -31,16 +31,6 @@ def run_skf(model_mode, loss_mode, cv_mode, hparams, norm_mask, labels_norm, loa
     :param k_shuffle: Whether to shuffle the given examples to split into k folds if using skf
     :return:
     '''
-    fl = load_data_to_fl(loader_file, norm_mask=norm_mask)
-
-    # Creating k-folds
-    if cv_mode == 'skf':
-        fl_store = fl.create_kf(k_folds=k_folds, shuffle=k_shuffle)
-    elif cv_mode == 'loocv':
-        fl_store = fl.create_loocv()
-    else:
-        raise TypeError('cv_mode should be a string containing either skf or loocv to choose either one.'
-                        ' {} was given instead.'.format(cv_mode))
 
     # Run k model instance to perform skf
     predicted_labels_store = []
@@ -77,7 +67,10 @@ def run_skf(model_mode, loss_mode, cv_mode, hparams, norm_mask, labels_norm, loa
 
         # Evaluation
         predicted_labels, mse, mse_norm = model.eval(i_ss_fl)
-        predicted_labels_store.extend(predicted_labels)
+        if fl.normalise_labels:
+            predicted_labels_store.extend(fl.labels_scaler.inverse_transform(predicted_labels))
+        else:
+            predicted_labels_store.extend(predicted_labels)
         mse_store.append(mse)
         mse_norm_store.append(mse_norm)
         '''
@@ -91,12 +84,10 @@ def run_skf(model_mode, loss_mode, cv_mode, hparams, norm_mask, labels_norm, loa
         if save_model:
             # Set save_model_name
             if isinstance(save_model_name, str):
-                save_model_name1 = save_model_name + '_' + model_mode + '_' + cv_mode + '_' + str(fold + 1)
+                save_model_name1 = save_model_name + '_' + model_mode + '_' + str(fold + 1)
             else:
-                save_model_name1 = model_mode + '_' + cv_mode + '_' + str(fold + 1)
-            # Checking if save model name file already exists, if so, add word 'new' behind
-            if os.path.isfile(save_model_dir + save_model_name1 + '.h5'):
-                save_model_name1 = 'new_' + save_model_name1
+                save_model_name1 = model_mode + '_' + str(fold + 1)
+
             # Save model
             print('Saving instance {} model in {}'.format(fold + 1, save_model_dir + save_model_name1 + '.h5'))
             if loss_mode == 'normal' or loss_mode == 'ann':
@@ -123,27 +114,24 @@ def run_skf(model_mode, loss_mode, cv_mode, hparams, norm_mask, labels_norm, loa
 
         # Printing one instance summary.
         instance_end = time.time()
-        if cv_mode == 'skf':
-            print(
-                '\nFor k-fold run {} out of {}. Each fold has {} examples. Model is {} with {} loss. Time taken for '
-                'instance = {}\n'
-                'Post-training results: \nmse = {}, mse_norm = {}\n'
-                '####################################################################################################'
-                    .format(fold + 1, k_folds, i_ss_fl.count, model_mode, loss_mode, instance_end - instance_start, mse,
-                            mse_norm))
-        else:
-            print('\nFor LOOCV run {} out of {}. Model is {} with {} loss. Time taken for instance = {}\n'
-                  'Post-training results: \nmse = {}, mse_norm = {}\n'
-                  '####################################################################################################'
-                  .format(fold + 1, fl.count, model_mode, loss_mode, instance_end - instance_start, mse, mse_norm))
+        print(
+            '\nFor k-fold run {} out of {}. Each fold has {} examples. Model is {} with {} loss. Time taken for '
+            'instance = {}\n'
+            'Post-training results: \nmse = {}, mse_norm = {}\n'
+            '####################################################################################################'
+                .format(fold + 1, k_folds, i_ss_fl.count, model_mode, loss_mode, instance_end - instance_start, mse,
+                        mse_norm))
 
     mse_avg = np.average(mse_store)
     mse_norm_avg = np.average(mse_norm_store)
 
     # Calculating metrics based on complete validation prediction
     mse_full = mean_squared_error(val_labels, predicted_labels_store)
-    mse_norm_full = mean_squared_error(fl.labels_scaler.transform(val_labels),
-                                       fl.labels_scaler.transform(predicted_labels_store))
+    try:
+        mse_norm_full = mean_squared_error(fl.labels_scaler.transform(val_labels),
+                                           fl.labels_scaler.transform(predicted_labels_store))
+    except AttributeError:
+        mse_norm_full=mse_full
 
     # Creating dataframe to print into excel later.
     new_df = np.concatenate((np.array(folds)[:, None],  # Convert 1d list to col. vector
@@ -151,11 +139,11 @@ def run_skf(model_mode, loss_mode, cv_mode, hparams, norm_mask, labels_norm, loa
                              np.array(val_labels),
                              np.array(predicted_labels_store))
                             , axis=1)
-    predicted_labels_name = list(map(str, fl.labels_names))
+    predicted_labels_name = list(map(str, np.arange(2,21)))
     predicted_labels_name = ['P_' + x for x in predicted_labels_name]
     headers = ['folds'] + \
               list(map(str, fl.features_c_names)) + \
-              list(map(str, fl.labels_names)) + \
+              list(map(str, np.arange(2,21))) + \
               predicted_labels_name
 
     # val_idx is the original position of the example in the data_loader
@@ -191,8 +179,6 @@ def run_skf(model_mode, loss_mode, cv_mode, hparams, norm_mask, labels_norm, loa
     print_array_to_excel(np.array(values_full), (3 + start_row, start_col + 1), ws, axis=1)
     ws.cell(2 + start_row, start_col).value = 'Folds avg'
     ws.cell(3 + start_row, start_col).value = 'Overall'
-    ws.cell(1, start_col).value = loader_file
-    # ws.cell(5 + start_row, start_col).value = short_model_summary
     pd_writer.save()
     pd_writer.close()
     wb.close()

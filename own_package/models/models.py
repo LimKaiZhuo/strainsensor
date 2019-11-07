@@ -166,8 +166,9 @@ class Kmodel:
         self.features_dim = fl.features_c_dim
         self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
         self.hparams = hparams
-        self.labels_norm = labels_norm
         self.mode = mode
+        self.normalise_labels = fl.normalise_labels
+        self.labels_scaler = fl.labels_scaler
         features_in = Input(shape=(self.features_dim,), name='main_features_c_input')
 
         # Selection of model
@@ -190,63 +191,54 @@ class Kmodel:
             x = model_2(x)
             self.model = Model(inputs=features_in, outputs=[end_node, x])
         elif mode=='ann3':
-            model_1 = ann(self.features_dim, 20, self.hparams)
-            x = model_1(features_in)
-            end_node = Dense(units=1,
-                             activation='linear',
-                             kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
-                             name='output_layer')(x)
-            x = concatenate([end_node, features_in])
+            x = Dense(units=hparams['pre'],
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_' + str(0))(features_in)
+            x = Dense(units=hparams['pre'],
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_' + str(1))(x)
+            x = Dense(units=hparams['pre'],
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_' + str(2))(x)
+            # x = BatchNormalization()(x)
+            x = Dense(units=19,
+                      activation='linear',
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_set_19')(x)
 
-            model_2 = ann(self.features_dim+1, self.labels_dim - 1, self.hparams)
 
-            x = model_2(x)
-            self.model = Model(inputs=features_in, outputs=[end_node, x])
+            self.model = Model(inputs=features_in, outputs=x)
         elif mode=='conv1':
-            x = Dense(units=hparams['shared'],
+            x = Dense(units=hparams['pre'],
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='shared' + str(1))(features_in)
-            x = Dense(units=hparams['shared'],
-                      activation=hparams['activation'],
-                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
-                      name='shared' + str(2))(x)
-            end = Dense(units=hparams['end'],
-                      activation=hparams['activation'],
-                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
-                      name='Dense_e_' + str(1))(x)
-            end = Dense(units=hparams['end'],
-                      activation=hparams['activation'],
-                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
-                      name='Dense_e_' + str(2))(end)
-            end_node = Dense(units=1,
-                             activation='linear',
-                             kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
-                             name='output_layer')(end)
-
             x = Dense(units=hparams['pre'],
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Pre_' + str(1))(x)
             #x = BatchNormalization()(x)
-            x = Dense(units=20,
+            x = Dense(units=19,
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
-                      name='Pre_set_20')(x)
+                      name='Pre_set_19')(x)
             #x = BatchNormalization()(x)
 
-            x = Reshape(target_shape=(20, 1))(x)
+            x = Reshape(target_shape=(19, 1))(x)
             x = Conv1D(filters=hparams['filters'], kernel_size=3, strides=1, padding='same', activation='relu')(x)
             #x = BatchNormalization()(x)
             x = Conv1D(filters=hparams['filters']*2, kernel_size=3, strides=1, padding='same', activation='relu')(x)
             x = Conv1D(filters=hparams['filters']*4, kernel_size=3, strides=1, padding='same', activation='relu')(x)
-            # x = Permute((2,1))(x)
-            # x = GlobalAveragePooling1D()(x)
+            #x = Permute((2,1))(x)
+            #x = GlobalAveragePooling1D()(x)
             x = TimeDistributed(Dense(1, activation='linear'))(x)
-            x = Reshape(target_shape=(20,))(x)
+            x = Reshape(target_shape=(19,))(x)
 
 
-            self.model = Model(inputs=features_in, outputs=[end_node, x])
+            self.model = Model(inputs=features_in, outputs=x)
 
         elif mode=='conv2':
             x = Dense(units=10,
@@ -332,7 +324,12 @@ class Kmodel:
             self.model = Model(inputs=features_in, outputs=[end_node, x])
 
         optimizer = keras.optimizers.adam(clipnorm=1)
-        self.model.compile(optimizer=optimizer, loss='mean_squared_error')
+        def weighted_mse(y_true, y_pred):
+            loss_weights = np.sqrt(np.arange(1, 20))
+            #loss_weights = np.arange(1, 20)
+            return K.mean(K.square(y_pred - y_true)*loss_weights, axis=-1)
+
+        self.model.compile(optimizer=optimizer, loss=weighted_mse)
         #self.model.summary()
 
     def train_model(self, fl, i_fl,
@@ -341,33 +338,25 @@ class Kmodel:
         # Training model
         training_features = fl.features_c_norm
         val_features = i_fl.features_c_norm
+        if self.normalise_labels:
+            training_labels = fl.labels_norm
+            val_labels = i_fl.labels_norm
+        else:
+            training_labels = fl.labels
+            val_labels = i_fl.labels
 
-        training_labels = fl.labels
-        val_labels = i_fl.labels
-        # labels must come in the matrix with rows of examples and columns are end, p1,p2,p3,...
-        if fl.labels.shape[1] > 1:
-            end = training_labels[:,0]
-            y = training_labels[:,1:]
-            training_labels = [end, y]
-
-            end = val_labels[:, 0]
-            y = val_labels[:, 1:]
-            val_labels = [end, y]
-
-        history = self.model.fit(training_features, training_labels,
-                                 validation_data=(val_features, val_labels),
-                                 epochs=self.hparams['epochs'],
-                                 batch_size=self.hparams['batch_size'],
-                                 verbose=self.hparams['verbose'])
-        # Debugging check to see features and prediction
-        # pprint.pprint(training_features)
-        # pprint.pprint(self.model.predict(training_features))
-        # pprint.pprint(training_labels)
-        # Saving Model
-        if save_mode:
-            self.model.save(save_dir + save_name)
         # Plotting
         if plot_name:
+            history = self.model.fit(training_features, training_labels,
+                                     validation_data=(val_features, val_labels),
+                                     epochs=self.hparams['epochs'],
+                                     batch_size=self.hparams['batch_size'],
+                                     verbose=self.hparams['verbose'])
+            # Debugging check to see features and prediction
+            # pprint.pprint(training_features)
+            # pprint.pprint(self.model.predict(training_features))
+            # pprint.pprint(training_labels)
+
             # summarize history for accuracy
             plt.semilogy(history.history['loss'], label=['train'])
             plt.semilogy(history.history['val_loss'], label=['test'])
@@ -379,15 +368,27 @@ class Kmodel:
             plt.legend(loc='upper right')
             plt.savefig(plot_name, bbox_inches='tight')
             plt.close()
+        else:
+            history = self.model.fit(training_features, training_labels,
+                                     epochs=self.hparams['epochs'],
+                                     batch_size=self.hparams['batch_size'],
+                                     verbose=self.hparams['verbose'])
+
+        # Saving Model
+        if save_mode:
+            self.model.save(save_dir + save_name)
+
         return self.model, history
 
     def eval(self, eval_fl):
         features = eval_fl.features_c_norm
-        labels = eval_fl.labels
         predictions = self.model.predict(features)
-        predictions = np.concatenate((predictions[0], predictions[1]),axis=1)
-        mse = mean_squared_error(labels, predictions)
-        mse_norm = mse
+        if self.normalise_labels:
+            mse_norm = mean_squared_error(eval_fl.labels_norm, predictions)
+            mse = mean_squared_error(eval_fl.labels, self.labels_scaler.inverse_transform(predictions))
+        else:
+            mse = mean_squared_error(eval_fl.labels, predictions)
+            mse_norm = mse
         return predictions, mse, mse_norm
 
 
@@ -513,19 +514,17 @@ class MTmodel:
             training_labels = fl.labels_norm.T.tolist()
         else:
             training_labels = fl.labels.T.tolist()
-        history = self.model.fit(training_features, training_labels,
-                                 epochs=self.hparams['epochs'],
-                                 batch_size=self.hparams['batch_size'],
-                                 verbose=self.hparams['verbose'])
-        # Debugging check to see features and prediction
-        # pprint.pprint(training_features)
-        # pprint.pprint(self.model.predict(training_features))
-        # pprint.pprint(training_labels)
-        # Saving Model
-        if save_mode:
-            self.model.save(save_dir + save_name)
-        # Plotting
+
         if plot_name:
+            history = self.model.fit(training_features, training_labels,
+                                     epochs=self.hparams['epochs'],
+                                     batch_size=self.hparams['batch_size'],
+                                     verbose=self.hparams['verbose'])
+            # Debugging check to see features and prediction
+            # pprint.pprint(training_features)
+            # pprint.pprint(self.model.predict(training_features))
+            # pprint.pprint(training_labels)
+            # Saving Model
             # summarize history for accuracy
             plt.plot(history.history['loss'])
             plt.title('model loss')
@@ -534,6 +533,15 @@ class MTmodel:
             plt.legend(['train'], loc='upper left')
             plt.savefig(plot_name, bbox_inches='tight')
             plt.close()
+        else:
+            self.model.fit(training_features, training_labels,
+                           epochs=self.hparams['epochs'],
+                           batch_size=self.hparams['batch_size'],
+                           verbose=self.hparams['verbose'])
+
+        if save_mode:
+            self.model.save(save_dir + save_name)
+
         return self.model
 
     def eval(self, eval_fl):

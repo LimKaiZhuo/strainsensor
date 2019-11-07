@@ -13,6 +13,8 @@ from own_package.active_learning.acquisition import features_to_features_input,\
     svm_ensemble_prediction, load_svm_ensemble
 from own_package.svm_classifier import SVMmodel
 from own_package.hparam_opt import grid_hparam_opt
+from own_package.spline_analysis import plot_arcsinh_predicted_splines
+from own_package.model_combination import combine_excel_results
 
 def test(selector):
     if selector == 1:
@@ -52,8 +54,26 @@ def test(selector):
             fl = pickle.load(handle)
 
         grid_hparam_opt(fl, 300)
+    elif selector == 3:
+        composition = np.array([0.175763935003216, 0.195036471863385])
+        svm_store = load_svm_ensemble('./results/svm gamma130/models')
+        prediction, distance = svm_ensemble_prediction(svm_store, composition)
+        print('prediction: {}\ndistance: {}'.format(prediction, distance))
+    elif selector == 4:
+        plot_arcsinh_predicted_splines(plot_dir='./results/hparams_opt Round 5 conv1 sqrt weight/plots',
+                                       results_excel_dir='./results/hparams_opt Round 5 conv1 sqrt weight/skf_results.xlsx',
+                                       end_excel_dir='./results/hparams_opt Round 5 conv1 sqrt weight/end.xlsx',
+                                       sheets=['Sheet2'],
+                                       fn=6)
+    elif selector == 5:
+        combine_excel_results(results_excel_dir='./results/combine Round 6/combination.xlsx',
+                              end_excel_dir='./results/combine Round 6/end 6.xlsx',
+                              plot_dir='./results/combine Round 6/plots',
+                              sheets=['ann3_115_0', 'ann3_190_0 sqrt', 'conv1_40_0', 'conv1_158_0 sqrt'],
+                              fn=6)
 
-test(1)
+
+test(5)
 
 '''
 model_store = load_model_ensemble('./save/models')
