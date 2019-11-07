@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 def plot_arcsinh_predicted_splines(plot_dir, results_excel_dir, end_excel_dir, sheets, fn):
     df = pd.read_excel(end_excel_dir)
-    end_store = df.values[:,-2].tolist()
+    end_store = df.sort_index().values[:,-2].tolist()
     p_end_store = df.values[:,-1].tolist()
 
     xls = pd.ExcelFile(results_excel_dir)

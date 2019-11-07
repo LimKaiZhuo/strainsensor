@@ -392,6 +392,270 @@ class Kmodel:
         return predictions, mse, mse_norm
 
 
+class Pmodel:
+    def __init__(self, fl, mode, hparams, labels_norm=True):
+        """
+        Initialises new DNN model based on input features_dim, labels_dim, hparams
+        :param features_dim: Number of input feature nodes. Integer
+        :param labels_dim: Number of output label nodes. Integer
+        :param hparams: Dict containing hyperparameter information. Dict can be created using create_hparams() function.
+        hparams includes: hidden_layers: List containing number of nodes in each hidden layer. [10, 20] means 10 then 20 nodes.
+        """
+        # self.features_dim = fl.features_c_dim
+        # self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
+        self.features_dim = fl.features_c_dim + 1  # 1 for the positional argument
+        self.labels_dim = 1
+        self.hparams = hparams
+        self.mode = mode
+        self.normalise_labels = fl.normalise_labels
+        self.labels_scaler = fl.labels_scaler
+        features_in = Input(shape=(self.features_dim,), name='main_features_c_input')
+
+        # Selection of model
+        if mode == 'ann':
+            model = ann(self.features_dim, self.labels_dim, self.hparams)
+            x = model(features_in)
+            self.model = Model(inputs=features_in, outputs=x)
+        elif mode == 'ann2':
+            model_1 = ann(self.features_dim, 50, self.hparams)
+            x = model_1(features_in)
+            model_end = ann(50, 50, self.hparams)
+            end = model_end(x)
+            end_node = Dense(units=1,
+                        activation='linear',
+                        kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                        name='output_layer')(end)
+
+            model_2 = ann(50, self.labels_dim-1, self.hparams)
+
+            x = model_2(x)
+            self.model = Model(inputs=features_in, outputs=[end_node, x])
+        elif mode=='ann3':
+            x = Dense(units=hparams['pre'],
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_' + str(0))(features_in)
+            x = Dense(units=hparams['pre'],
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_' + str(1))(x)
+            x = Dense(units=hparams['pre'],
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_' + str(2))(x)
+            # x = BatchNormalization()(x)
+            x = Dense(units=1,
+                      activation='linear',
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_set_19')(x)
+
+
+            self.model = Model(inputs=features_in, outputs=x)
+        elif mode=='conv1':
+            x = Dense(units=hparams['pre'],
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='shared' + str(1))(features_in)
+            x = Dense(units=hparams['pre'],
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_' + str(1))(x)
+            #x = BatchNormalization()(x)
+            x = Dense(units=19,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_set_19')(x)
+            #x = BatchNormalization()(x)
+
+            x = Reshape(target_shape=(19, 1))(x)
+            x = Conv1D(filters=hparams['filters'], kernel_size=3, strides=1, padding='same', activation='relu')(x)
+            #x = BatchNormalization()(x)
+            x = Conv1D(filters=hparams['filters']*2, kernel_size=3, strides=1, padding='same', activation='relu')(x)
+            x = Conv1D(filters=hparams['filters']*4, kernel_size=3, strides=1, padding='same', activation='relu')(x)
+            #x = Permute((2,1))(x)
+            #x = GlobalAveragePooling1D()(x)
+            x = TimeDistributed(Dense(1, activation='linear'))(x)
+            x = Reshape(target_shape=(19,))(x)
+
+
+            self.model = Model(inputs=features_in, outputs=x)
+
+        elif mode=='conv2':
+            x = Dense(units=10,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Shared_e_' + str(1))(features_in)
+            x = Dense(units=10,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Shared_e_' + str(2))(x)
+            end = Dense(units=10,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Dense_e_' + str(1))(x)
+            end = Dense(units=10,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Dense_e_' + str(2))(end)
+            end_node = Dense(units=1,
+                             activation='linear',
+                             kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                             name='output_layer')(end)
+
+
+            x = Dense(units=80,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_' + str(1))(x)
+            x = Reshape(target_shape=(80, 1))(x)
+            x = Conv1D(filters=8, kernel_size=3, strides=1, padding='same', activation='relu')(x)
+
+            x = MaxPooling1D(pool_size=2)(x)
+            x = Conv1D(filters=16, kernel_size=3, strides=1, padding='same', activation='relu')(x)
+            x = MaxPooling1D(pool_size=2)(x)
+            #x = Permute((2,1))(x)
+            #x = GlobalAveragePooling1D()(x)
+            x = TimeDistributed(Dense(1, activation='linear'))(x)
+            x = Reshape(target_shape=(20,))(x)
+
+            self.model = Model(inputs=features_in, outputs=[end_node, x])
+
+        elif mode=='lstm':
+            x = Dense(units=20,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Shared_e_' + str(1))(features_in)
+            x = Dense(units=20,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Shared_e_' + str(2))(x)
+            end = Dense(units=20,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Dense_e_' + str(1))(x)
+            end = Dense(units=20,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Dense_e_' + str(2))(end)
+            end_node = Dense(units=1,
+                             activation='linear',
+                             kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                             name='output_layer')(end)
+
+            x = Dense(units=20,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_' + str(1))(x)
+            x = Dense(units=20,
+                      activation=hparams['activation'],
+                      kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
+                      name='Pre_' + str(2))(x)
+
+            x = RepeatVector(n=20)(x)
+            x = LSTM(units=30, activation='relu', return_sequences=True)(x)
+            x = LSTM(units=30, activation='relu', return_sequences=True)(x)
+
+            x = TimeDistributed(Dense(1))(x)
+            x = Reshape(target_shape=(20,))(x)
+            '''
+            x = Permute((2,1))(x)
+            x = GlobalAveragePooling1D()(x)
+            '''
+            self.model = Model(inputs=features_in, outputs=[end_node, x])
+
+        optimizer = keras.optimizers.adam(clipnorm=1)
+
+        self.model.compile(optimizer=optimizer, loss='mean_squared_error')
+        #self.model.summary()
+
+    def train_model(self, fl, i_fl,
+                    save_name='mt.h5', save_dir='./save/models/',
+                    save_mode=False, plot_name=None):
+        # Training model
+        training_features = fl.features_c_norm
+        val_features = i_fl.features_c_norm
+        if self.normalise_labels:
+            training_labels = fl.labels_norm
+            val_labels = i_fl.labels_norm
+        else:
+            training_labels = fl.labels
+            val_labels = i_fl.labels
+
+        p_features = []
+        for features in training_features.tolist():
+            for idx in list(range(1,20)):
+                p_features.append(features+[idx])
+
+        training_features = np.array(p_features)
+
+        training_labels = training_labels.flatten()[:, None]
+
+        # Plotting
+        if plot_name:
+            p_features = []
+            for features in val_features.tolist():
+                for idx in list(range(1, 20)):
+                    p_features.append(features + [idx])
+
+            val_features = np.array(p_features)
+
+            val_labels = val_labels.flatten()[:, None]
+
+
+            history = self.model.fit(training_features, training_labels,
+                                     validation_data=(val_features, val_labels),
+                                     epochs=self.hparams['epochs'],
+                                     batch_size=self.hparams['batch_size'],
+                                     verbose=self.hparams['verbose'])
+            # Debugging check to see features and prediction
+            # pprint.pprint(training_features)
+            # pprint.pprint(self.model.predict(training_features))
+            # pprint.pprint(training_labels)
+
+            # summarize history for accuracy
+            plt.semilogy(history.history['loss'], label=['train'])
+            plt.semilogy(history.history['val_loss'], label=['test'])
+            plt.plot([],[],' ',label='Final train: {:.3e}'.format(history.history['loss'][-1]))
+            plt.plot([], [], ' ', label='Final val: {:.3e}'.format(history.history['val_loss'][-1]))
+            plt.title('model loss')
+            plt.ylabel('loss')
+            plt.xlabel('epoch')
+            plt.legend(loc='upper right')
+            plt.savefig(plot_name, bbox_inches='tight')
+            plt.close()
+        else:
+            history = self.model.fit(training_features, training_labels,
+                                     epochs=self.hparams['epochs'],
+                                     batch_size=self.hparams['batch_size'],
+                                     verbose=self.hparams['verbose'])
+
+        # Saving Model
+        if save_mode:
+            self.model.save(save_dir + save_name)
+
+        return self.model, history
+
+    def eval(self, eval_fl):
+        eval_features = eval_fl.features_c_norm
+
+        predictions = []
+        for features in eval_features.tolist():
+            single_expt = []
+            for idx in list(range(1,20)):
+                single_expt.append(self.model.predict(np.array(features+[idx])[None,...])[0][0])
+            predictions.append(single_expt)
+
+        predictions = np.array(predictions)
+
+        if self.normalise_labels:
+            mse_norm = mean_squared_error(eval_fl.labels_norm, predictions)
+            mse = mean_squared_error(eval_fl.labels, self.labels_scaler.inverse_transform(predictions))
+        else:
+            mse = mean_squared_error(eval_fl.labels, predictions)
+            mse_norm = mse
+        return predictions, mse, mse_norm
+
+
 class CrossStitchLayer(Layer):
         def __init__(self, **kwargs):
             super(CrossStitchLayer, self).__init__(**kwargs)

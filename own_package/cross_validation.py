@@ -9,7 +9,7 @@ from openpyxl import load_workbook
 from sklearn.metrics import mean_squared_error
 import time, os
 # Own Scripts
-from own_package.models.models import MTmodel, Kmodel
+from own_package.models.models import MTmodel, Kmodel, Pmodel
 from own_package.models.hul_model import HULMTmodel
 from .others import print_array_to_excel
 from .features_labels_setup import load_data_to_fl
@@ -55,6 +55,8 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams, norm_mask, normalise_l
             print([np.exp(K.get_value(log_var[0])) ** 0.5 for log_var in model.model.layers[-1].log_vars])
         elif loss_mode == 'ann':
             model = Kmodel(fl=ss_fl, mode=model_mode, hparams=hparams, labels_norm=labels_norm)
+        elif loss_mode == 'p_model':
+            model = Pmodel(fl=ss_fl, mode=model_mode, hparams=hparams, labels_norm=labels_norm)
         else:
             raise KeyError('loss_mode ' + loss_mode + 'is not a valid selection for loss mode.')
 

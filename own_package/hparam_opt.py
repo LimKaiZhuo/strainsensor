@@ -205,7 +205,7 @@ def hparam_opt(model_mode, loss_mode, norm_mask, normalise_labels,labels_norm, f
     elif model_mode == 'ann3':
         start_time = time.time()
         bounds = [[50, 300, ],
-                  [100, 900]]
+                  [50, 900]]
 
         pre = Integer(low=bounds[0][0], high=bounds[0][1], name='pre')
         epochs = Integer(low=bounds[1][0], high=bounds[1][1], name='epochs')
