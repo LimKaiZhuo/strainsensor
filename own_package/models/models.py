@@ -19,6 +19,8 @@ def create_hparams(shared_layers=0, ts_layers=0, cs_layers=0,
                    activation='relu',
                    shared = 10, end = 10, pre = 10, filters = 10,
                    reg_l1=0, reg_l2=0,
+                   epsilon=1, c=1,
+                   max_depth=6, num_est=300,
                    verbose=1):
     """
     Creates hparam dict for input into create_DNN_model or other similar functions. Contain Hyperparameter info
@@ -29,12 +31,16 @@ def create_hparams(shared_layers=0, ts_layers=0, cs_layers=0,
              'activation',
              'shared', 'end', 'pre', 'filters',
              'reg_l1', 'reg_l2',
+             'epsilon', 'c',
+             'max_depth', 'num_est',
              'verbose']
     values = [shared_layers, ts_layers, cs_layers,
               learning_rate, optimizer, epochs, batch_size,
               activation,
               shared, end, pre, filters,
               reg_l1, reg_l2,
+              epsilon, c,
+              max_depth, num_est,
               verbose]
     hparams = dict(zip(names, values))
     return hparams
@@ -155,7 +161,7 @@ def ann(features_dim: int, labels_dim: int, hparams: Dict):
 
 
 class Kmodel:
-    def __init__(self, fl, mode, hparams, labels_norm=True):
+    def __init__(self, fl, mode, hparams):
         """
         Initialises new DNN model based on input features_dim, labels_dim, hparams
         :param features_dim: Number of input feature nodes. Integer
@@ -204,10 +210,10 @@ class Kmodel:
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Pre_' + str(2))(x)
             # x = BatchNormalization()(x)
-            x = Dense(units=19,
+            x = Dense(units=self.labels_dim,
                       activation='linear',
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
-                      name='Pre_set_19')(x)
+                      name='Final')(x)
 
 
             self.model = Model(inputs=features_in, outputs=x)
@@ -329,7 +335,7 @@ class Kmodel:
             #loss_weights = np.arange(1, 20)
             return K.mean(K.square(y_pred - y_true)*loss_weights, axis=-1)
 
-        self.model.compile(optimizer=optimizer, loss=weighted_mse)
+        self.model.compile(optimizer=optimizer, loss='mean_squared_error')
         #self.model.summary()
 
     def train_model(self, fl, i_fl,
@@ -392,8 +398,10 @@ class Kmodel:
         return predictions, mse, mse_norm
 
 
+
+
 class Pmodel:
-    def __init__(self, fl, mode, hparams, labels_norm=True):
+    def __init__(self, fl, mode, hparams):
         """
         Initialises new DNN model based on input features_dim, labels_dim, hparams
         :param features_dim: Number of input feature nodes. Integer
@@ -405,6 +413,7 @@ class Pmodel:
         # self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
         self.features_dim = fl.features_c_dim + 1  # 1 for the positional argument
         self.labels_dim = 1
+        self.numel = fl.labels.shape[1] + 1
         self.hparams = hparams
         self.mode = mode
         self.normalise_labels = fl.normalise_labels
@@ -574,6 +583,7 @@ class Pmodel:
         # Training model
         training_features = fl.features_c_norm
         val_features = i_fl.features_c_norm
+
         if self.normalise_labels:
             training_labels = fl.labels_norm
             val_labels = i_fl.labels_norm
@@ -583,7 +593,7 @@ class Pmodel:
 
         p_features = []
         for features in training_features.tolist():
-            for idx in list(range(1,20)):
+            for idx in list(range(1,self.numel)):
                 p_features.append(features+[idx])
 
         training_features = np.array(p_features)
@@ -594,7 +604,7 @@ class Pmodel:
         if plot_name:
             p_features = []
             for features in val_features.tolist():
-                for idx in list(range(1, 20)):
+                for idx in list(range(1, self.numel)):
                     p_features.append(features + [idx])
 
             val_features = np.array(p_features)
@@ -641,7 +651,7 @@ class Pmodel:
         predictions = []
         for features in eval_features.tolist():
             single_expt = []
-            for idx in list(range(1,20)):
+            for idx in list(range(1,self.numel)):
                 single_expt.append(self.model.predict(np.array(features+[idx])[None,...])[0][0])
             predictions.append(single_expt)
 

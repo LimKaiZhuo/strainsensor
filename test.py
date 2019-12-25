@@ -9,30 +9,31 @@ from keras.layers import Input
 from keras.models import Model
 import pickle
 import matplotlib.pyplot as plt
-from own_package.active_learning.acquisition import features_to_features_input,\
-    svm_ensemble_prediction, load_svm_ensemble
+from own_package.active_learning.acquisition import features_to_features_input, \
+    svm_ensemble_prediction, load_svm_ensemble, load_model_ensemble, model_ensemble_prediction
 from own_package.svm_classifier import SVMmodel
 from own_package.hparam_opt import grid_hparam_opt
 from own_package.spline_analysis import plot_arcsinh_predicted_splines
-from own_package.model_combination import combine_excel_results
+from own_package.model_combination import combine_excel_results, cutoff_combine_excel_results, mse_tracker
 
-def test(selector):
+
+def test(selector, number=None):
     if selector == 1:
         svm_store = load_svm_ensemble('./results/svm_results/models')
-        x,y = np.meshgrid(np.linspace(0,1,100), np.linspace(0,1,100))
-        composition = np.concatenate((x.reshape(-1, 1), y.reshape(-1, 1)),axis=1)
+        x, y = np.meshgrid(np.linspace(0, 1, 100), np.linspace(0, 1, 100))
+        composition = np.concatenate((x.reshape(-1, 1), y.reshape(-1, 1)), axis=1)
         prediction, distance = svm_ensemble_prediction(svm_store, composition)
-        plt.scatter(composition[:, 0], composition[:, 1],c=distance)
+        plt.scatter(composition[:, 0], composition[:, 1], c=distance)
         plt.colorbar()
         plt.savefig('./results/distance map.png', bbox_inches='tight')
         plt.close()
-        plt.scatter(composition[:, 0], composition[:, 1],c=prediction)
+        plt.scatter(composition[:, 0], composition[:, 1], c=prediction)
         plt.colorbar()
         plt.savefig('./results/prediction map.png', bbox_inches='tight')
         plt.close()
         with open('results/grid full/grid_data', 'rb') as handle:
             fl = pickle.load(handle)
-        plt.scatter(fl.features[:,0], fl.features[:,1], c=fl.labels)
+        plt.scatter(fl.features[:, 0], fl.features[:, 1], c=fl.labels)
         plt.colorbar()
         plt.savefig('./results/actual map.png', bbox_inches='tight')
         plt.close()
@@ -40,11 +41,11 @@ def test(selector):
         model = SVMmodel(fl=fl, gamma=130)
         model.train_model(fl=fl)
         prediction, distance = svm_ensemble_prediction([model], composition)
-        plt.scatter(composition[:, 0], composition[:, 1],c=distance)
+        plt.scatter(composition[:, 0], composition[:, 1], c=distance)
         plt.colorbar()
         plt.savefig('./results/distance map2.png', bbox_inches='tight')
         plt.close()
-        plt.scatter(composition[:, 0], composition[:, 1],c=prediction)
+        plt.scatter(composition[:, 0], composition[:, 1], c=prediction)
         plt.colorbar()
         plt.savefig('./results/prediction map2.png', bbox_inches='tight')
         plt.close()
@@ -60,22 +61,70 @@ def test(selector):
         prediction, distance = svm_ensemble_prediction(svm_store, composition)
         print('prediction: {}\ndistance: {}'.format(prediction, distance))
     elif selector == 4:
-        plot_arcsinh_predicted_splines(plot_dir='./results/hparams_opt Round 5 conv1 sqrt weight/plots',
-                                       results_excel_dir='./results/hparams_opt Round 5 conv1 sqrt weight/skf_results.xlsx',
-                                       end_excel_dir='./results/hparams_opt Round 5 conv1 sqrt weight/end.xlsx',
-                                       sheets=['Sheet2'],
-                                       fn=6)
+        write_dir = './results/skf3'
+        plot_arcsinh_predicted_splines(plot_dir='{}/plots'.format(write_dir),
+                                       results_excel_dir='{}/skf_results.xlsx'.format(write_dir),
+                                       end_excel_dir='./results/combine Round 6/end 6.xlsx',
+                                       transformation='arcsinh',
+                                       sheets=['ann3'], fn=6, numel=99)
     elif selector == 5:
         combine_excel_results(results_excel_dir='./results/combine Round 6/combination.xlsx',
                               end_excel_dir='./results/combine Round 6/end 6.xlsx',
                               plot_dir='./results/combine Round 6/plots',
                               sheets=['ann3_115_0', 'ann3_190_0 sqrt', 'conv1_40_0', 'conv1_158_0 sqrt'],
                               fn=6)
+    elif selector == 6:
+        cutoff_combine_excel_results(dir_store=['./results/hparams_opt Round {} SVR'.format(number),
+                                                './results/hparams_opt Round {} DTR'.format(number),
+                                                './results/hparams_opt Round {} ANN3'.format(number)],
+                                     sheets=['svr', 'dtr', 'ann3'],
+                                     results_excel_dir='./results/combination {}/combination CM R{}.xlsx'.format(number, number),
+                                     plot_dir='./results/combination {}/plots'.format(number),
+                                     plot_mode=True,
+                                     fn=6, numel=3)
+
+    elif selector == 7:
+        model_store = load_model_ensemble('./results/skf13/models')
+        mean, std = model_ensemble_prediction(model_store, np.array([[0.5, 0.5, 0.5, 0, 1, 0]]))
+        print(mean, std)
+
+    elif selector == 8:
+        mse_tracker(excel_store=['./results/combination {}/combination CM R{} - 4.xlsx'.format(1, 1),
+                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(2, 2),
+                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(3, 3),
+                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(4, 4),
+                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(5, 5),
+                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(6, 6),
+                                 './results/combination {}/combination CM R{} - 4.xlsx'.format('6e', '6e'),
+                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(7, 7),
+                                 './results/combination {}/combination CM R{} - 5.xlsx'.format(8, 8),
+                                 './results/combination {}/combination CM R{} - 2.xlsx'.format(9,9)],
+                    write_excel='./MSE tracker.xlsx',
+                    rounds=[1,2,3,4,5,6,'6e',7,8,9],
+                    headers=['SVR', 'DTR', 'ANN3', 'Combined'])
 
 
-test(5)
 
+test(8)
+#test(6, number=1)
+#test(6, number=2)
+#test(6, number=3)
+#test(6, number=4)
+#test(6, number=5)
+#test(6, number=6)
+#test(6, number='6e')
+#test(6, number=7)
+#test(6, number=8)
+#test(6, number=9)
 '''
+test(6, number=2)
+test(6, number=3)
+test(6, number=4)
+test(6, number=5)
+test(6, number=6)
+test(6, number=7)
+test(6, number=8)
+test(6, number='6e')
 model_store = load_model_ensemble('./save/models')
 fl = load_data_to_fl('./excel/Data_loader_poly4_caa_090219.xlsx')
 
@@ -124,5 +173,3 @@ a = [np.array([5,1,5,1,5]).reshape((1,-1)), np.array([1,2,3,4,5]).reshape((1,-1)
 output = model.predict(a)
 print(output)
 '''
-
-

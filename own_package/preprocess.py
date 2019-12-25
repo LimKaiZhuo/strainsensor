@@ -1,5 +1,6 @@
 import math
 import openpyxl
+from openpyxl.utils.dataframe import dataframe_to_rows
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -273,6 +274,7 @@ def read_excel_data(read_excel_file, write_excel_file, plot_directory, mode, cp0
 
 
 def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, spline_selector):
+    cutoff = [10,100]
     # read_excel_file part
     df = pd.read_excel(read_excel_file, sheet_name='raw', header=[0, 1], index_col=None)
 
@@ -296,6 +298,8 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
 
     # Calculation of metrics for each experiment
     summary_store = []
+    cutoff_store = []
+    cutoff_store2 = []  # second method to do cutoff
     plot_store = []
     for strain, r in zip(strain_store, r_store):
         eval_x = np.linspace(0, strain[-1], num=discrete_points)  # To evaluate spline at
@@ -305,36 +309,114 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
             spline = PchipInterpolator(strain, r)
             # Store the processed labels. Labels for one example is 1d ndarray of
             # [End_point of strain curve, r1, r2, r3, ... , r_end]
-            summary_store.append(np.concatenate([[strain[-1]], spline.__call__(eval_x)]))
+            y_discrete = spline.__call__(eval_x)
+            gradient_store = (y_discrete[1:] - y_discrete[:-1])/(eval_x[1]-eval_x[0])
+            # If indexError occurs ==> np.where found nothing ==> there is no points with the required gradient
+            # So just put the end point as the answer.
+            try:
+                cutoff_one = eval_x[np.where(gradient_store>=cutoff[0])[0][0]]
+            except IndexError:
+                cutoff_one = eval_x[-1]
+            try:
+                cutoff_two = eval_x[np.where(gradient_store >=cutoff[1])[0][0]]
+            except IndexError:
+                cutoff_two = eval_x[-1]
+            cutoff_store.append([cutoff_one, cutoff_two, strain[-1]])
+            summary_store.append(np.concatenate([[strain[-1]], y_discrete]))
             plot_store.append([eval_x_plot, spline.__call__(eval_x_plot)])
         elif spline_selector == 2:
+            # NOT IN USE
             # csaps implementation
             fitted_curve = csaps.UnivariateCubicSmoothingSpline(strain, r, smooth=0.7)
             summary_store.append(np.concatenate([[strain[-1]], fitted_curve(eval_x)]))
             plot_store.append([eval_x_plot, fitted_curve(eval_x_plot)])
         elif spline_selector == 3:
-        # Scripy implementation
+            # NOT IN USE
+            # Scripy implementation
             spline = CubicSpline(strain, r)
             # Store the processed labels. Labels for one example is 1d ndarray of
             # [End_point of strain curve, r1, r2, r3, ... , r_end]
             summary_store.append(np.concatenate([[strain[-1]], spline.__call__(eval_x)]))
             plot_store.append([eval_x_plot, spline.__call__(eval_x_plot)])
 
+        # Second cutoff method
+        r = np.array(r)
+        strain = np.array(strain)
+        gf_store = (r[1:] - r[:-1])/(strain[1:] - strain[:-1])
+        if gf_store[-1]<-1:
+            cutoff_one = -1
+            cutoff_two = -1
+        else:
+            try:
+                cut_idx = np.where(gf_store>=cutoff[0])[0][0]
+                if strain[cut_idx] > 0:
+                    cutoff_one = strain[cut_idx]
+                else:
+                    cutoff_one = strain[cut_idx+1]
+            except IndexError:
+                cutoff_one = strain[-1]
+            try:
+                cut_idx = np.where(gf_store>=cutoff[1])[0][0]
+                if strain[cut_idx] > 0:
+                    cutoff_two = strain[cut_idx]
+                else:
+                    cutoff_two = strain[cut_idx+1]
+            except IndexError:
+                cutoff_two = strain[-1]
+        cutoff_store2.append([cutoff_one, cutoff_two, strain[-1]])
+
+
 
     # Print to write_excel_file
+
+
     excel_name = write_dir + '/results.xlsx'
     wb = openpyxl.Workbook()
+    wb.create_sheet('points')
+    ws = wb['points']
+
+    header = np.array(range(np.shape(strain_store)[0])) + 1  # Index to label Exp 1, 2, 3, ...
+    columns = list(range(0,1+discrete_points))
+    columns[0] = 'END'
+    header = list(header)
+    df_write = pd.DataFrame(summary_store, index=header, columns=columns)
+
+    rows = dataframe_to_rows(df_write)
+    for r_idx, row in enumerate(rows, 1):
+        for c_idx, value in enumerate(row, 1):
+            ws.cell(row=r_idx + 1, column=c_idx, value=value)
+
+    wb.create_sheet('cutoff')
+    ws = wb['cutoff']
+
+    header = np.array(range(np.shape(strain_store)[0])) + 1  # Index to label Exp 1, 2, 3, ...
+    columns = ['cut={}'.format(x) for x in cutoff] + ['END']
+    header = list(header)
+    df_write = pd.DataFrame(cutoff_store, index=header, columns=columns)
+
+    rows = dataframe_to_rows(df_write)
+    for r_idx, row in enumerate(rows, 1):
+        for c_idx, value in enumerate(row, 1):
+            ws.cell(row=r_idx + 1, column=c_idx, value=value)
+
     wb.save(excel_name)
     wb.close()
 
-    pd_writer = pd.ExcelWriter(excel_name, engine='openpyxl')
+    wb.create_sheet('cutoff2')
+    ws = wb['cutoff2']
 
     header = np.array(range(np.shape(strain_store)[0])) + 1  # Index to label Exp 1, 2, 3, ...
+    columns = ['cut={}'.format(x) for x in cutoff] + ['END']
     header = list(header)
-    df_write = pd.DataFrame(summary_store, index=header)
-    df_write.to_excel(pd_writer)
-    pd_writer.save()
-    pd_writer.close()
+    df_write = pd.DataFrame(cutoff_store2, index=header, columns=columns)
+
+    rows = dataframe_to_rows(df_write)
+    for r_idx, row in enumerate(rows, 1):
+        for c_idx, value in enumerate(row, 1):
+            ws.cell(row=r_idx + 1, column=c_idx, value=value)
+
+    wb.save(excel_name)
+    wb.close()
 
     # Plotting
     for idx, [strain, r, plot, summary] in enumerate(zip(strain_store, r_store, plot_store, summary_store)):

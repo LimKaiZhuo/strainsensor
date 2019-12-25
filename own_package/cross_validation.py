@@ -7,15 +7,17 @@ from pandas import Series
 import openpyxl
 from openpyxl import load_workbook
 from sklearn.metrics import mean_squared_error
-import time, os
+import time, os, pickle
+
 # Own Scripts
 from own_package.models.models import MTmodel, Kmodel, Pmodel
+from own_package.svr import SVRmodel, MIMOSVRmodel, DTRmodel, Predict_SVR_DTR
 from own_package.models.hul_model import HULMTmodel
 from .others import print_array_to_excel
 from .features_labels_setup import load_data_to_fl
 
-def run_skf(model_mode, loss_mode, fl, fl_store, hparams, norm_mask, normalise_labels,labels_norm,
-            skf_file,
+def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
+            skf_file, label_type='cutoff',
             skf_sheet=None,
             k_folds=10, k_shuffle=True, save_model=False, save_model_name=None, save_model_dir=None,
             plot_name=None):
@@ -54,25 +56,45 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams, norm_mask, normalise_l
             print('HUL Standard Deviation Values:')
             print([np.exp(K.get_value(log_var[0])) ** 0.5 for log_var in model.model.layers[-1].log_vars])
         elif loss_mode == 'ann':
-            model = Kmodel(fl=ss_fl, mode=model_mode, hparams=hparams, labels_norm=labels_norm)
+            model = Kmodel(fl=ss_fl, mode=model_mode, hparams=hparams)
         elif loss_mode == 'p_model':
-            model = Pmodel(fl=ss_fl, mode=model_mode, hparams=hparams, labels_norm=labels_norm)
+            model = Pmodel(fl=ss_fl, mode=model_mode, hparams=hparams)
+        elif loss_mode == 'svr':
+            if not fl.normalise_labels:
+                raise TypeError('fl labels are not normalised. For SVR, the labels must be normalised.')
+            model = SVRmodel(fl=ss_fl, epsilon=hparams['epsilon'], c=hparams['c'])
+        elif loss_mode == 'dtr':
+            if not fl.normalise_labels:
+                raise TypeError('fl labels are not normalised. For SVR, the labels must be normalised.')
+            model = DTRmodel(fl=ss_fl, max_depth=hparams['max_depth'], num_est=hparams['num_est'])
+        elif loss_mode == 'mimosvr':
+            if not fl.normalise_labels:
+                raise TypeError('fl labels are not normalised. For SVR, the labels must be normalised.')
+            model = MIMOSVRmodel(fl=ss_fl, gamma=hparams['gamma'])
+
         else:
             raise KeyError('loss_mode ' + loss_mode + 'is not a valid selection for loss mode.')
 
         # Train model and save model training loss vs epoch plot if plot_name is given, else no plot will be saved
         if plot_name:
-            model.train_model(ss_fl, i_ss_fl, save_mode=False,
-                              plot_name='{}_fold_{}.png'.format(plot_name, fold))
+            model.train_model(ss_fl, i_ss_fl, plot_name='{}_fold_{}.png'.format(plot_name, fold))
         else:
             model.train_model(ss_fl, i_ss_fl)
 
         # Evaluation
         predicted_labels, mse, mse_norm = model.eval(i_ss_fl)
         if fl.normalise_labels:
-            predicted_labels_store.extend(fl.labels_scaler.inverse_transform(predicted_labels))
-        else:
-            predicted_labels_store.extend(predicted_labels)
+            predicted_labels = fl.labels_scaler.inverse_transform(predicted_labels)
+
+        if label_type=='cutoff':
+            for row, p_label in enumerate(predicted_labels.tolist()):
+                if p_label[1]>p_label[2]:
+                    predicted_labels[row,1]=predicted_labels[row,2]
+                if p_label[0]>predicted_labels[row,1]:
+                    predicted_labels[row,0]=predicted_labels[row,1]
+            pass
+
+        predicted_labels_store.extend(predicted_labels)
         mse_store.append(mse)
         mse_norm_store.append(mse_norm)
         '''
@@ -96,6 +118,9 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams, norm_mask, normalise_l
                 model.model.save(save_model_dir + save_model_name1 + '.h5')
             elif loss_mode == 'hul':
                 model.prediction_model.save(save_model_dir + save_model_name1 + '.h5')
+            elif loss_mode == 'svr' or loss_mode == 'dtr':
+                pickle.dump(Predict_SVR_DTR(model=model.model, labels_scaler=model.labels_scaler),
+                            open(save_model_dir + save_model_name1 + '.pkl', 'wb'))
 
         # Need to put the next 3 lines if not memory will run out
         del model
@@ -141,12 +166,20 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams, norm_mask, normalise_l
                              np.array(val_labels),
                              np.array(predicted_labels_store))
                             , axis=1)
-    predicted_labels_name = list(map(str, np.arange(2,21)))
-    predicted_labels_name = ['P_' + x for x in predicted_labels_name]
-    headers = ['folds'] + \
-              list(map(str, fl.features_c_names)) + \
-              list(map(str, np.arange(2,21))) + \
-              predicted_labels_name
+    if fl.label_type == 'points':
+        predicted_labels_name = list(map(str, np.arange(2,101)))
+        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        headers = ['folds'] + \
+                  list(map(str, fl.features_c_names)) + \
+                  list(map(str, np.arange(2,101))) + \
+                  predicted_labels_name
+    elif fl.label_type == 'cutoff':
+        predicted_labels_name = list(fl.labels_names)
+        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        headers = ['folds'] + \
+                  list(map(str, fl.features_c_names)) + \
+                  list(fl.labels_names) + \
+                  predicted_labels_name
 
     # val_idx is the original position of the example in the data_loader
     new_df = pd.DataFrame(data=new_df, columns=headers, index=val_idx)
@@ -185,4 +218,4 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams, norm_mask, normalise_l
     pd_writer.close()
     wb.close()
 
-    return mse_norm_full
+    return mse_full

@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from openpyxl import load_workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
 import openpyxl
 import sys
 import os
@@ -10,12 +11,13 @@ def create_results_directory(results_directory, folders=['plots', 'models'], exc
         expand = 1
         while True:
             expand += 1
-            new_results_directory = results_directory + str(expand)
+            new_results_directory = results_directory + ' - ' + str(expand)
             if os.path.exists(new_results_directory):
                 continue
             else:
                 results_directory = new_results_directory
                 break
+
     os.mkdir(results_directory)
     for item in folders:
         os.mkdir(results_directory + '/' + item)
@@ -62,6 +64,19 @@ def print_array_to_excel(array, first_cell, ws, axis=2):
             for j in range(shape[1]):
                 ws.cell(i + first_cell[0], j + first_cell[1]).value = array[i, j]
 
+def print_df_to_excel(df, ws, index=True, header=True):
+    rows = list(dataframe_to_rows(df, index=index, header=header))
+    rows.pop(1)
+    for r_idx, row in enumerate(rows, 1):
+        skip_count = 0
+        for c_idx, value in enumerate(row, 1):
+            if isinstance(value, str):
+                if 'Unnamed' not in value:
+                    ws.cell(row=r_idx - skip_count, column=c_idx, value=value)
+            else:
+                ws.cell(row=r_idx - skip_count, column=c_idx, value=value)
+        else:
+            skip_count += 1
 
 if __name__ == '__main__':
     print('hi')

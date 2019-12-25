@@ -15,8 +15,8 @@ from own_package.svr import SVRmodel, run_svr
 from .cross_validation import run_skf
 from own_package.others import print_array_to_excel
 
-def hparam_opt(model_mode, loss_mode, norm_mask, normalise_labels,labels_norm, fl_in, fl_store_in, write_dir, save_model_dir,
-               total_run, instance_per_run=3,
+def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, save_model_dir,
+               total_run, instance_per_run=3, save_model=False,
                plot_dir=None):
     """
      names = ['shared_1_l', 'shared_1_h',
@@ -183,10 +183,9 @@ def hparam_opt(model_mode, loss_mode, norm_mask, normalise_labels,labels_norm, f
                 else:
                     plot_name = None
                 mse = run_skf(model_mode=model_mode, loss_mode=loss_mode, fl=fl, fl_store=fl_store, hparams=hparams,
-                              norm_mask=norm_mask, normalise_labels=normalise_labels, labels_norm=labels_norm,
                               skf_file=hparam_file, skf_sheet='_' + str(run_count) + '_' + str(cnt),
                               k_folds=10, k_shuffle=True,
-                              save_model_name='hparam_' + str(run_count) + '_' + str(cnt+1), save_model=True,
+                              save_model_name='hparam_' + str(run_count) + '_' + str(cnt+1), save_model=save_model,
                               save_model_dir=save_model_dir,
                               plot_name=plot_name)
                 mse_avg += mse
@@ -204,8 +203,8 @@ def hparam_opt(model_mode, loss_mode, norm_mask, normalise_labels,labels_norm, f
             return loss
     elif model_mode == 'ann3':
         start_time = time.time()
-        bounds = [[50, 300, ],
-                  [50, 900]]
+        bounds = [[10, 300, ],
+                  [50, 800]]
 
         pre = Integer(low=bounds[0][0], high=bounds[0][1], name='pre')
         epochs = Integer(low=bounds[1][0], high=bounds[1][1], name='epochs')
@@ -228,10 +227,93 @@ def hparam_opt(model_mode, loss_mode, norm_mask, normalise_labels,labels_norm, f
                 else:
                     plot_name = None
                 mse = run_skf(model_mode=model_mode, loss_mode=loss_mode, fl=fl, fl_store=fl_store, hparams=hparams,
-                              norm_mask=norm_mask, normalise_labels=normalise_labels, labels_norm=labels_norm,
                               skf_file=hparam_file, skf_sheet='_' + str(run_count) + '_' + str(cnt),
                               k_folds=10, k_shuffle=True,
-                              save_model_name='hparam_' + str(run_count) + '_' + str(cnt + 1), save_model=True,
+                              save_model_name='hparam_' + str(run_count) + '_' + str(cnt + 1), save_model=save_model,
+                              save_model_dir=save_model_dir,
+                              plot_name=plot_name)
+                mse_avg += mse
+
+            mse_avg = mse_avg / instance_per_run
+            loss = mse_avg
+            end_time = time.time()
+            print('**************************************************************************************************\n'
+                  'Run Number {} \n'
+                  'Instance per run {} \n'
+                  'Current run MSE {} \n'
+                  'Time Taken: {}\n'
+                  '*********************************************************************************************'.format(
+                run_count, instance_per_run, mse_avg, end_time - start_time))
+            return loss
+    elif model_mode == 'dtr':
+        start_time = time.time()
+        bounds = [[3, 30, ],
+                  [1, 500]]
+
+        depth = Integer(low=bounds[0][0], high=bounds[0][1], name='depth')
+        num_est = Integer(low=bounds[1][0], high=bounds[1][1], name='num_est')
+        dimensions = [depth, num_est]
+        default_parameters = [6, 300]
+
+        @use_named_args(dimensions=dimensions)
+        def fitness(depth, num_est):
+            global run_count, data_store, fl, fl_store
+            run_count += 1
+            hparams = create_hparams(max_depth=depth, num_est=num_est)
+
+            mse_avg = 0
+
+            for cnt in range(instance_per_run):
+                if plot_dir:
+                    plot_name = '{}/{}_{}_run_{}_count_{}'.format(plot_dir, model_mode, loss_mode, run_count, cnt)
+                else:
+                    plot_name = None
+                mse = run_skf(model_mode=model_mode, loss_mode=loss_mode, fl=fl, fl_store=fl_store, hparams=hparams,
+                              skf_file=hparam_file, skf_sheet='_' + str(run_count) + '_' + str(cnt),
+                              k_folds=10, k_shuffle=True,
+                              save_model_name='hparam_' + str(run_count) + '_' + str(cnt + 1), save_model=save_model,
+                              save_model_dir=save_model_dir,
+                              plot_name=plot_name)
+                mse_avg += mse
+
+            mse_avg = mse_avg / instance_per_run
+            loss = mse_avg
+            end_time = time.time()
+            print('**************************************************************************************************\n'
+                  'Run Number {} \n'
+                  'Instance per run {} \n'
+                  'Current run MSE {} \n'
+                  'Time Taken: {}\n'
+                  '*********************************************************************************************'.format(
+                run_count, instance_per_run, mse_avg, end_time - start_time))
+            return loss
+    elif model_mode == 'svr':
+        start_time = time.time()
+        bounds = [[0.001, 0.4, ],
+                  [0.01, 100]]
+
+        epsilon = Real(low=bounds[0][0], high=bounds[0][1], name='epsilon')
+        c = Real(low=bounds[1][0], high=bounds[1][1], name='c')
+        dimensions = [epsilon, c]
+        default_parameters = [0.1, 1]
+
+        @use_named_args(dimensions=dimensions)
+        def fitness(epsilon, c):
+            global run_count, data_store, fl, fl_store
+            run_count += 1
+            hparams = create_hparams(epsilon=epsilon, c=c)
+
+            mse_avg = 0
+
+            for cnt in range(instance_per_run):
+                if plot_dir:
+                    plot_name = '{}/{}_{}_run_{}_count_{}'.format(plot_dir, model_mode, loss_mode, run_count, cnt)
+                else:
+                    plot_name = None
+                mse = run_skf(model_mode=model_mode, loss_mode=loss_mode, fl=fl, fl_store=fl_store, hparams=hparams,
+                              skf_file=hparam_file, skf_sheet='_' + str(run_count) + '_' + str(cnt),
+                              k_folds=10, k_shuffle=True,
+                              save_model_name='hparam_' + str(run_count) + '_' + str(cnt + 1), save_model=save_model,
                               save_model_dir=save_model_dir,
                               plot_name=plot_name)
                 mse_avg += mse
@@ -258,13 +340,16 @@ def hparam_opt(model_mode, loss_mode, norm_mask, normalise_labels,labels_norm, f
     wb = load_workbook(write_dir+'/hparam_results.xlsx')
     hparam_store = np.array(search_result.x_iters)
     results = np.array(search_result.func_vals)
-    index = np.arange(total_run)
+    index = np.arange(total_run) + 1
     toprint = np.concatenate((index.reshape(-1,1),hparam_store, results.reshape(-1, 1)), axis=1)
     if model_mode == 'conv1':
         header = np.array(['index', 'pre', 'filters', 'epochs', 'mse'])
     elif model_mode == 'ann3':
         header = np.array(['index', 'pre', 'epochs', 'mse'])
-
+    elif model_mode == 'dtr':
+        header = np.array(['index', 'max_depth', 'num_est', 'mse'])
+    elif model_mode == 'svr':
+        header = np.array(['index', 'epsilon', 'c', 'mse'])
     toprint = np.concatenate((header.reshape(1,-1), toprint), axis=0)
     sheetname = wb.sheetnames[-1]
     ws = wb[sheetname]

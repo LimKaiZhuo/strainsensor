@@ -83,19 +83,18 @@ def load_model_ensemble(model_directory) -> List:
     directory = model_directory
     for idx, file in enumerate(os.listdir(directory)):
         filename = os.fsdecode(file)
-        if filename.endswith(".h5"):
-            model_name_store.append(directory + '/' + filename)
+        model_name_store.append(directory + '/' + filename)
     print('Loading the following models from {}. Total models = {}'.format(directory, len(model_name_store)))
-
-    def weighted_mse(y_true, y_pred):
-        # loss_weights = np.sqrt(np.arange(1, 20))
-        loss_weights = np.arange(1, 20)
-        return K.mean(K.square(y_pred - y_true) * loss_weights, axis=-1)
 
     # Loading model class object into a list
     model_store = []
     for name in model_name_store:
-        model_store.append(load_model(name, custom_objects={'weighted_mse': weighted_mse}))
+        if name.endswith(".pkl"):
+            model_store.append(pickle.load(open(name, 'rb')))
+        elif name.endswith('.h5'):
+            model_store.append(load_model(name))
+        else:
+            raise TypeError('{} found that does not end with .pkl or .h5'.format(name))
         print('Model {} has been loaded'.format(name))
 
     return model_store
@@ -111,16 +110,8 @@ def model_ensemble_prediction(model_store, features_c_norm):
     predictions_store = []
     for model in model_store:
         predictions = model.predict(features_c_norm).tolist()
-
-        '''
-        predictions = model.predict(features_c_norm)
-        predictions = [x.item() for x in predictions]
-        predictions = np.vstack(predictions).reshape((-1))
-        predictions = predictions.tolist()
-        '''
-
         predictions_store.append(predictions)
-    predictions_store = np.array(predictions_store)
+    predictions_store = np.array(predictions_store).squeeze()
     predictions_mean = np.mean(predictions_store, axis=0)
     predictions_std = np.std(predictions_store, axis=0)
 
@@ -161,16 +152,15 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
     :param hparam_file:
     :return:
     """
-    # Checking if skf_file excel exists. If not, create new excel
-    if os.path.exists(acquisition_file):
+    while os.path.isfile(acquisition_file):
         expand = 1
         while True:
             expand += 1
-            new_acquisition_file = acquisition_file[:-5] + str(expand) + '.xlsx'
-            if os.path.exists(new_acquisition_file):
+            new_file_name = acquisition_file.split('.xlsx')[0] + ' - ' + str(expand) + '.xlsx'
+            if os.path.isfile(new_file_name):
                 continue
             else:
-                acquisition_file = new_acquisition_file
+                acquisition_file = new_file_name
                 break
     print('Writing into' + acquisition_file + '\n')
     wb = openpyxl.Workbook()
@@ -179,7 +169,7 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
     model_store = load_model_ensemble(model_directory)
     svm_store = load_svm_ensemble(svm_directory)
 
-    fl = load_data_to_fl(loader_file, norm_mask=norm_mask, normalise_labels=normalise_labels)
+    fl = load_data_to_fl(loader_file, norm_mask=norm_mask, normalise_labels=normalise_labels, label_type='cutoff')
 
     space = [Real(low=bounds[0][0], high=bounds[0][1], name='CNT'),
              Real(low=bounds[1][0], high=bounds[1][1], name='PVA'),
@@ -203,6 +193,12 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
                 print('Current Iteration: {} out of {} for batch {} '.format(iter_count, total_run, batch + 1))
 
             features = np.array([x for x in params.values()])
+            x = features[0]
+            y = features[1]
+            if x+y>1:
+                u = -y + 1
+                v = -x + 1
+                features[0:2] = np.array([u,v])
 
             # SVM Check
             p_class, distance = svm_ensemble_prediction(svm_store, features[0:2])
@@ -254,7 +250,7 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
                 prediction_std_store.append(prediction_std.flatten().tolist())
             return -a_score
 
-
+        '''
         search_result = forest_minimize(func=fitness,
                                         dimensions=space,
                                         acq_func='EI',  # Expected Improvement.
@@ -266,21 +262,37 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
                                         dimensions=space,
                                         n_calls=total_run,
                                         verbose=False)
-        '''
+
         plot_convergence(search_result)
         x_iters = search_result.x_iters
+        for idx, row in enumerate(x_iters):
+            x, y = row[0:2]
+            if x+y>1:
+                u = -y + 1
+                v = -x + 1
+                x_iters[idx][0:2] = [u,v]
+
+
         func_val = -search_result.func_vals
         best_x = search_result.x
 
-        p_mean_name = np.array(['Pmean_' + str(x) for x in list(map(str, np.arange(2,21)))])
-        p_std_name = np.array(['Pstd_' + str(x) for x in list(map(str, np.arange(2,21)))])
+        p_mean_name = np.array(['Pmean_' + str(x) for x in list(map(str, np.arange(1,4)))])
+        p_std_name = np.array(['Pstd_' + str(x) for x in list(map(str, np.arange(1,4)))])
+        p_sm_name = np.array(['Ps/m_' + str(x) for x in list(map(str, np.arange(1, 4)))])
+
+        mean = np.array(prediction_mean_store)
+        std = np.array(prediction_std_store)
+        sm = np.array(prediction_std_store)/np.array(prediction_mean_store)
+        a2 = (np.array(l2_dist_store)*np.sum(sm, axis=1)).reshape((-1,1))
 
         data = np.concatenate((np.array(x_iters),
                                func_val.reshape((-1, 1)),
                                np.array(disagreement_store).reshape((-1, 1)),
                                np.array(l2_dist_store).reshape((-1, 1)),
-                               np.array(prediction_mean_store),
-                               np.array(prediction_std_store),
+                               mean,
+                               std,
+                               sm,
+                               a2
                                ), axis=1)
 
         columns = np.concatenate((np.array(fl.features_c_names[:-2]),
@@ -289,6 +301,8 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
                                   np.array(['L2']),
                                   p_mean_name,
                                   p_std_name,
+                                  p_sm_name,
+                                  np.array(['A_sm_score'])
                                   ))
 
         iter_df = pd.DataFrame(data=data,

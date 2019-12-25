@@ -1,4 +1,7 @@
 from sklearn.svm import SVR
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.multioutput import MultiOutputRegressor
+from sklearn.ensemble import AdaBoostRegressor
 from sklearn.metrics import classification_report, confusion_matrix, matthews_corrcoef, mean_squared_error
 import pickle, time, gc
 import numpy as np
@@ -9,12 +12,14 @@ from openpyxl import load_workbook
 import matplotlib.pyplot as plt
 
 from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, merge, Input, concatenate, Reshape, Permute, LSTM,\
+from keras.layers import Dense, Dropout, merge, Input, concatenate, Reshape, Permute, LSTM, \
     TimeDistributed, RepeatVector, MaxPooling1D, BatchNormalization
 import keras
 
 from own_package.others import print_array_to_excel, create_results_directory
 from own_package.models.models import ann
+from own_package.models.mimosvr import msvr, kernelmatrix
+
 
 class ANNmodel:
     def __init__(self, fl, hparams):
@@ -60,7 +65,7 @@ class ANNmodel:
             # summarize history for accuracy
             plt.semilogy(history.history['loss'], label=['train'])
             plt.semilogy(history.history['val_loss'], label=['test'])
-            plt.plot([],[],' ',label='Final train: {:.3e}'.format(history.history['loss'][-1]))
+            plt.plot([], [], ' ', label='Final train: {:.3e}'.format(history.history['loss'][-1]))
             plt.plot([], [], ' ', label='Final val: {:.3e}'.format(history.history['val_loss'][-1]))
             plt.title('model loss')
             plt.ylabel('loss')
@@ -90,7 +95,87 @@ class ANNmodel:
             predictions = self.model.predict(features)
         return predictions
 
+
 class SVRmodel:
+    def __init__(self, fl, epsilon=1, c=1):
+        """
+        Initialises new DNN model based on input features_dim, labels_dim, hparams
+        :param features_dim: Number of input feature nodes. Integer
+        :param labels_dim: Number of output label nodes. Integer
+        :param hparams: Dict containing hyperparameter information. Dict can be created using create_hparams() function.
+        hparams includes: hidden_layers: List containing number of nodes in each hidden layer. [10, 20] means 10 then 20 nodes.
+        """
+        self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
+        self.labels_scaler = fl.labels_scaler
+        if self.labels_dim == 1:
+            self.model = SVR(kernel='rbf', gamma=gamma, C=c)
+        else:
+            self.model = MultiOutputRegressor(SVR(kernel='rbf', epsilon=epsilon, C=c))
+
+    def train_model(self, fl, save_mode=False, plot_name=None):
+        training_features = fl.features_c_norm
+        training_labels = fl.labels_norm
+
+        self.model.fit(training_features, training_labels)
+
+        return self.model
+
+    def eval(self, eval_fl):
+        features = eval_fl.features_c_norm
+        if self.labels_dim == 1:
+            y_pred = self.model.predict(features)[:, None]
+        else:
+            y_pred = self.model.predict(features)
+        mse_norm = mean_squared_error(eval_fl.labels_norm, y_pred)
+        mse = mean_squared_error(eval_fl.labels, self.labels_scaler.inverse_transform(y_pred))
+
+        return y_pred, mse, mse_norm
+
+
+class DTRmodel:
+    def __init__(self, fl, max_depth=8, num_est=300):
+        """
+        Initialises new DNN model based on input features_dim, labels_dim, hparams
+        :param features_dim: Number of input feature nodes. Integer
+        :param labels_dim: Number of output label nodes. Integer
+        :param hparams: Dict containing hyperparameter information. Dict can be created using create_hparams() function.
+        hparams includes: hidden_layers: List containing number of nodes in each hidden layer. [10, 20] means 10 then 20 nodes.
+        """
+        self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
+        self.labels_scaler = fl.labels_scaler
+        self.model = MultiOutputRegressor(AdaBoostRegressor(DecisionTreeRegressor(max_depth=max_depth),n_estimators=num_est))
+
+    def train_model(self, fl, save_mode=False, plot_name=None):
+        training_features = fl.features_c_norm
+        training_labels = fl.labels_norm
+
+        self.model.fit(training_features, training_labels)
+
+        return self.model
+
+    def eval(self, eval_fl):
+        features = eval_fl.features_c_norm
+        if self.labels_dim == 1:
+            y_pred = self.model.predict(features)[:, None]
+        else:
+            y_pred = self.model.predict(features)
+        mse_norm = mean_squared_error(eval_fl.labels_norm, y_pred)
+        mse = mean_squared_error(eval_fl.labels, self.labels_scaler.inverse_transform(y_pred))
+
+        return y_pred, mse, mse_norm
+
+
+class Predict_SVR_DTR:
+    def __init__(self, model, labels_scaler):
+        self.model = model
+        self.labels_scaler = labels_scaler
+
+    def predict(self, features):
+        y_pred = self.labels_scaler.inverse_transform(self.model.predict(features))
+        return y_pred
+
+
+class MIMOSVRmodel:
     def __init__(self, fl, gamma=1):
         """
         Initialises new DNN model based on input features_dim, labels_dim, hparams
@@ -101,22 +186,38 @@ class SVRmodel:
         """
         self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
         self.fl = fl
-        self.model = SVR(kernel='rbf', gamma=gamma, degree=5)
+        self.labels_scaler = fl.labels_scaler
+        if self.labels_dim == 1:
+            raise TypeError('MultiSVRmodel only accepts multiple labels. Label dimension is 1.')
 
-    def train_model(self, fl):
+    def train_model(self, fl, save_mode=False, plot_name=None):
         training_features = fl.features_c_norm
-        training_labels = fl.labels_end_norm
+        training_labels = fl.labels_norm
 
-        self.model.fit(training_features, training_labels)
+        self.C = 1  # Parametro de regularización (boxConstraint)
+        self.paramK = 1  # Parametro para la funcion kernel
+        self.tipoK = 'rbf'  # Tipo de kernel a usar en el modelo. Los disponibles son: 'lin', 'poly' y 'rbf'
+        self.epsilon = 20  # Parametro que establece el ancho del epsilon tubo o zona de tolerancia (por defecto es 1)
+        self.tol = 10 ** -20  # Parametro que necesita el modelo para detener el modelo si el error se vuelve muy bajo
+
+        self.model = msvr(training_features, training_labels, self.tipoK, self.C,
+                          self.epsilon,
+                          self.paramK, self.tol)
 
         return self.model
 
     def eval(self, eval_fl):
         features = eval_fl.features_c_norm
 
-        y_pred = self.model.predict(features)[:,None]
-        y_pred = self.fl.labels_end_scaler.inverse_transform(y_pred)
-        return y_pred
+        Beta, numero_VectoresS, kernel_train, indices_vectoresS = self.model
+
+        kernel_test = kernelmatrix(self.tipoK, features.T, self.fl.features_c_norm.T, self.paramK)
+        y_pred = np.dot(kernel_test, Beta)
+
+        mse_norm = mean_squared_error(eval_fl.labels_norm, y_pred)
+        mse = mean_squared_error(eval_fl.labels, self.labels_scaler.inverse_transform(y_pred))
+
+        return y_pred, mse, mse_norm
 
 
 def run_svr(fl_store, write_dir, excel_dir, model_selector, gamma=1, hparams=None, save_name=None):
@@ -130,10 +231,10 @@ def run_svr(fl_store, write_dir, excel_dir, model_selector, gamma=1, hparams=Non
         instance_start = time.time()
 
         (ss_fl, i_ss_fl) = fl_tuple  # ss_fl is training fl, i_ss_fl is validation fl
-        if model_selector=='svr':
+        if model_selector == 'svr':
             model = SVRmodel(fl=ss_fl, gamma=gamma)
             model.train_model(fl=ss_fl)
-        elif model_selector=='ann':
+        elif model_selector == 'ann':
             model = ANNmodel(fl=ss_fl, hparams=hparams)
             #  plot_name='{}/plots/{}.png'.format(write_dir,fold)
             model.train_model(fl=ss_fl, i_fl=i_ss_fl)
@@ -160,7 +261,7 @@ def run_svr(fl_store, write_dir, excel_dir, model_selector, gamma=1, hparams=Non
         folds.extend([fold] * i_ss_fl.count)  # Make a col that contains the fold number for each example
         if len(val_features):
             val_features = np.concatenate((val_features, i_ss_fl.features_c),
-                                            axis=0)
+                                          axis=0)
         else:
             val_features = i_ss_fl.features_c
 
@@ -175,15 +276,14 @@ def run_svr(fl_store, write_dir, excel_dir, model_selector, gamma=1, hparams=Non
             '####################################################################################################'
                 .format(fold + 1, 10, i_ss_fl.count, instance_end - instance_start))
 
-
     # Calculating metrics based on complete validation prediction
     mse = mean_squared_error(y_true=val_labels, y_pred=predicted_labels_store)
 
     # Creating dataframe to print into excel later.
     new_df = np.concatenate((np.array(folds)[:, None],  # Convert 1d list to col. vector
                              val_features,
-                             np.array(val_labels)[:,None],
-                             np.array(predicted_labels_store)[:,None])
+                             np.array(val_labels)[:, None],
+                             np.array(predicted_labels_store)[:, None])
                             , axis=1)
     headers = ['folds'] + \
               list(map(str, fl_store[0][0].features_c_names)) + \

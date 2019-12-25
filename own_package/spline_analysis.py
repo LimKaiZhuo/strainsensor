@@ -3,7 +3,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_arcsinh_predicted_splines(plot_dir, results_excel_dir, end_excel_dir, sheets, fn):
+def plot_cutoff(plot_dir, results_excel_dir, sheets, fn, numel):
+    cutoff = [10,100]
+    xls = pd.ExcelFile(results_excel_dir)
+    for sheet in sheets:
+        df = pd.read_excel(xls, sheet_name=sheet)
+        df = df.sort_index()
+
+        y_store = df.iloc[:, fn + 1:fn + 1 + numel].values
+        p_y_store = df.iloc[:, fn + 1 + numel:fn + 1 + 2*numel].values
+
+        for idx, [x, p_x] in enumerate(zip(y_store, p_y_store)):
+            plt.plot([0, x[0], x[1], x[2]], [0, 0, 10*(x[1]-x[0]), cutoff[0]*(x[1]-x[0])+cutoff[1]*(x[2]-x[1])], c='b', label='Actual Spline Fit')
+            plt.plot([0, p_x[0], p_x[1], p_x[2]], [0, 0, 10*(p_x[1]-p_x[0]), cutoff[0]*(p_x[1]-p_x[0])+cutoff[1]*(p_x[2]-p_x[1])], c='r', label='Predicted Spline Fit')
+            plt.legend(loc='upper left')
+            plt.title('Expt. ' + str(idx + 1))
+            plt.savefig('{}/{}_{}.png'.format(plot_dir, sheet, idx),
+                        bbox_inches='tight')
+            plt.close()
+
+
+def plot_arcsinh_predicted_splines(plot_dir, results_excel_dir, end_excel_dir, sheets, fn, numel, transformation='normal'):
     df = pd.read_excel(end_excel_dir)
     end_store = df.sort_index().values[:,-2].tolist()
     p_end_store = df.values[:,-1].tolist()
@@ -13,16 +33,18 @@ def plot_arcsinh_predicted_splines(plot_dir, results_excel_dir, end_excel_dir, s
         df = pd.read_excel(xls, sheet_name=sheet)
         df = df.sort_index()
 
-        y_store = np.sinh(df.iloc[:, fn + 1:fn + 20].values)
+        y_store = df.iloc[:, fn + 1:fn + 1 + numel].values
+        if transformation == 'normal':
+            y_store = np.sinh(y_store)
         y_store = np.concatenate((np.zeros((np.shape(y_store)[0], 1)), y_store), axis=1).tolist()
-        p_y_store = np.sinh(df.iloc[:, fn + 20:fn + 39].values)
+        p_y_store = df.iloc[:, fn + 1 + numel:fn + 1 + 2*numel].values
+        if transformation == 'normal':
+            y_store = np.sinh(p_y_store)
         p_y_store = np.concatenate((np.zeros((np.shape(y_store)[0], 1)), p_y_store), axis=1).tolist()
 
-        numel = len(y_store[0])
-
         for idx, [end, p_end, y, p_y] in enumerate(zip(end_store, p_end_store, y_store, p_y_store)):
-            x = np.linspace(0, end, num=numel)
-            p_x = np.linspace(0, p_end, num=numel)
+            x = np.linspace(0, end, num=numel+1)
+            p_x = np.linspace(0, p_end, num=numel+1)
 
             plt.plot(x, y, c='b', label='Actual Spline Fit')
             plt.plot(p_x, p_y, c='r', label='Predicted Spline Fit')

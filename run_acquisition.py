@@ -10,14 +10,14 @@ bounds = [[0, 1],
 
 def selector(run):
     if run == 1:
-        write_dir = './results/skf Round 6'
+        write_dir = './results/combination 9'
 
         acquisition_opt(bounds=bounds, model_directory='{}/models'.format(write_dir),
                         svm_directory='./results/svm gamma130/models',
-                        loader_file='./excel/Data_loader_spline_full_onehot_R6_arcsinh.xlsx',
-                        total_run=3000,
+                        loader_file='./excel/Data_loader_spline_full_onehot_R9_cut_CM3.xlsx',
+                        total_run=20000,
                         batch_runs=8,
-                        normalise_labels=False,
+                        normalise_labels=True,
                         norm_mask=[0,0,0,1,1,1],
                         acquisition_file='{}/acq.xlsx'.format(write_dir))
 
