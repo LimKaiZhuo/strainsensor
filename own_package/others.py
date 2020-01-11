@@ -64,12 +64,12 @@ def print_array_to_excel(array, first_cell, ws, axis=2):
             for j in range(shape[1]):
                 ws.cell(i + first_cell[0], j + first_cell[1]).value = array[i, j]
 
-def print_df_to_excel(df, ws, index=True, header=True):
+def print_df_to_excel(df, ws, start_row=1, start_col=1, index=True, header=True):
     rows = list(dataframe_to_rows(df, index=index, header=header))
     rows.pop(1)
-    for r_idx, row in enumerate(rows, 1):
+    for r_idx, row in enumerate(rows, start_row):
         skip_count = 0
-        for c_idx, value in enumerate(row, 1):
+        for c_idx, value in enumerate(row, start_col):
             if isinstance(value, str):
                 if 'Unnamed' not in value:
                     ws.cell(row=r_idx - skip_count, column=c_idx, value=value)

@@ -82,7 +82,7 @@ def read_excel_data(read_excel_file, write_excel_file, plot_directory, mode, cp0
     :return: Nothing
     """
     # read_excel_file part
-    df = pd.read_excel(read_excel_file, sheet_name='raw', header=[0, 1], index_col=None)
+    df = pd.read_excel(read_excel_file, sheet_name='raw', header=[0, 1], index_col=0)
 
     strain = df.xs('Strain (%)', level='Data', axis=1)
     strain = strain.values.T.tolist()
@@ -276,7 +276,7 @@ def read_excel_data(read_excel_file, write_excel_file, plot_directory, mode, cp0
 def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, spline_selector):
     cutoff = [10,100]
     # read_excel_file part
-    df = pd.read_excel(read_excel_file, sheet_name='raw', header=[0, 1], index_col=None)
+    df = pd.read_excel(read_excel_file, sheet_name='raw', header=[0, 1], index_col=0)
 
     # take only strain columns and make into a new df
     strain = df.xs('Strain (%)', level='Data', axis=1)

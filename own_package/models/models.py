@@ -1,18 +1,19 @@
-from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, merge, Input, concatenate, Reshape, Permute, LSTM,\
+import tensorflow as tf
+from tensorflow.python.keras.models import Sequential, Model
+from tensorflow.python.keras.layers import Dense, Dropout, merge, Input, concatenate, Reshape, Permute, LSTM,\
     TimeDistributed, RepeatVector, MaxPooling1D, BatchNormalization
-from keras.layers.convolutional import Conv1D
-from keras.engine.topology import Layer
-from keras import regularizers
-from keras import backend as K
-from keras.layers.pooling import GlobalAveragePooling1D
-import keras
+from tensorflow.python.keras.layers.convolutional import Conv1D
+from tensorflow.python.keras import regularizers
+from tensorflow.python.keras import backend as K
+from tensorflow.keras.optimizers import Adam
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import numpy as np
 import pprint
 import time
 from typing import List, Dict
+
+
 
 def create_hparams(shared_layers=0, ts_layers=0, cs_layers=0,
                    learning_rate=0.001, optimizer='Adam', epochs=100, batch_size=64,
@@ -329,7 +330,7 @@ class Kmodel:
             '''
             self.model = Model(inputs=features_in, outputs=[end_node, x])
 
-        optimizer = keras.optimizers.adam(clipnorm=1)
+        optimizer = Adam(clipnorm=1)
         def weighted_mse(y_true, y_pred):
             loss_weights = np.sqrt(np.arange(1, 20))
             #loss_weights = np.arange(1, 20)
@@ -572,7 +573,7 @@ class Pmodel:
             '''
             self.model = Model(inputs=features_in, outputs=[end_node, x])
 
-        optimizer = keras.optimizers.adam(clipnorm=1)
+        optimizer = Adam(clipnorm=1)
 
         self.model.compile(optimizer=optimizer, loss='mean_squared_error')
         #self.model.summary()
@@ -665,7 +666,7 @@ class Pmodel:
             mse_norm = mse
         return predictions, mse, mse_norm
 
-
+'''
 class CrossStitchLayer(Layer):
         def __init__(self, **kwargs):
             super(CrossStitchLayer, self).__init__(**kwargs)
@@ -693,7 +694,7 @@ class CrossStitchLayer(Layer):
 
         def compute_output_shape(self, input_shape):
             return input_shape
-
+'''
 
 def cross_stitch(features_dim: int, labels_dim: List[int], hparams: Dict):
     """

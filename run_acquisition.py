@@ -1,4 +1,4 @@
-from own_package.active_learning.acquisition import acquisition_opt
+from own_package.active_learning.acquisition import acquisition_opt, l2_points_opt
 from own_package.spline_analysis import plot_acq_splines
 from own_package.others import create_results_directory
 from own_package.EXP_acquisition import variance_error_experiement
@@ -8,17 +8,17 @@ bounds = [[0, 1],
           [0, 1],
           [200, 2000]]
 
-def selector(run):
+def selector(run, **kwargs):
     if run == 1:
-        write_dir = './results/combination 9'
+        write_dir = './results/combination 12'
 
         acquisition_opt(bounds=bounds, model_directory='{}/models'.format(write_dir),
                         svm_directory='./results/svm gamma130/models',
-                        loader_file='./excel/Data_loader_spline_full_onehot_R9_cut_CM3.xlsx',
+                        loader_file='./excel/Data_loader_spline_full_onehot_R12_cut_CM3.xlsx',
                         total_run=20000,
                         batch_runs=8,
                         normalise_labels=True,
-                        norm_mask=[0,0,0,1,1,1],
+                        norm_mask=[0,1,3,4,5],
                         acquisition_file='{}/acq.xlsx'.format(write_dir))
 
     elif run == 2:
@@ -38,6 +38,15 @@ def selector(run):
                                    loader_file='./excel/Data_loader_spline.xlsx', model_dir=write_dir + '/models/',
                                    hparams=hparams,
                                    results_excel=write_dir + '/acq_exp.xlsx')
+    elif run == 4:
+        numel = kwargs['numel']
+        svm_store = kwargs['svm_store']
+        seed_number_expt = kwargs['seed_number_expt']
+        total_expt = kwargs['total_expt']
+        write_dir = kwargs['write_dir']
+        l2_points_opt(numel=numel, write_dir=write_dir, svm_directory=svm_store,
+                      seed_number_of_expt=seed_number_expt, total_expt=total_expt)
 
+#selector(4,numel=210, write_dir='./results/l2 acq', svm_store='./results/svm gamma130/models', seed_number_expt=5, total_expt=30)
 selector(1)
 

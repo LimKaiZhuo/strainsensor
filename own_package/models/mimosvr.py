@@ -4,7 +4,6 @@ import numpy as np
 import numpy.matlib
 import matplotlib.pyplot as plt
 from sklearn import metrics
-from sklearn.cross_validation import KFold
 from sklearn.decomposition import PCA
 
 

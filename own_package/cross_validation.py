@@ -1,5 +1,5 @@
-import keras.backend as K
 import tensorflow as tf
+from tensorflow.python.keras import backend as K
 import gc
 import numpy as np
 import pandas as pd
@@ -19,7 +19,8 @@ from .features_labels_setup import load_data_to_fl
 def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
             skf_file, label_type='cutoff',
             skf_sheet=None,
-            k_folds=10, k_shuffle=True, save_model=False, save_model_name=None, save_model_dir=None,
+            k_folds=10, k_shuffle=True,
+            save_model=False, save_model_name=None, save_model_dir=None,
             plot_name=None):
     '''
     Stratified k fold cross validation for training and evaluating model 2 only. Model 1 data is trained before hand.
@@ -43,7 +44,8 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
     val_features_c = []
     val_labels = []
     for fold, fl_tuple in enumerate(fl_store):
-        sess = tf.Session()
+        sess = tf.compat.v1.Session()
+        #sess = tf.Session()
         K.set_session(sess)
         instance_start = time.time()
         (ss_fl, i_ss_fl) = fl_tuple  # ss_fl is training fl, i_ss_fl is validation fl

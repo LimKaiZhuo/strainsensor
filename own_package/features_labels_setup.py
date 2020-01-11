@@ -15,9 +15,9 @@ from .others import print_array_to_excel
 
 
 def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_mask=None):
-    df_features = pd.read_excel(data_loader_excel_file, sheet_name='features')
-    df_features_d = pd.read_excel(data_loader_excel_file, sheet_name='features_d')
-    df_labels = pd.read_excel(data_loader_excel_file, sheet_name=label_type)
+    df_features = pd.read_excel(data_loader_excel_file, sheet_name='features', index_col=0)
+    df_features_d = pd.read_excel(data_loader_excel_file, sheet_name='features_d', index_col=0)
+    df_labels = pd.read_excel(data_loader_excel_file, sheet_name=label_type, index_col=0)
 
 
     features_c = df_features.values
@@ -30,7 +30,7 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
         features_dc_names = []
         for item in features_d_names:
             try:
-                temp_df = pd.read_excel(data_loader_excel_file, sheet_name=item)
+                temp_df = pd.read_excel(data_loader_excel_file, sheet_name=item, index_col=0)
                 temp_df = temp_df.set_index(item)
                 lookup_df_store.append(temp_df)
                 features_dc_names.extend(temp_df.columns.values.tolist())
@@ -221,6 +221,41 @@ class Features_labels:
                  Features_labels(xval, yendval, yval, idx=xval_idx, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
                                  norm_mask=self.norm_mask, features_c_names=self.features_c_names, label_type=self.label_type))
+            )
+        return fl_store
+
+    def smote_kf_augment(self, smote_excel, k_folds, shuffle=True):
+        """
+        Same as kf above. But appends all smote data to each fold's training examples. Validation examples no change.
+        :param smote_excel:
+        :param k_folds:
+        :param shuffle:
+        :return:
+        """
+        smote = pd.read_excel(smote_excel, index_col=0).values
+        smote_features = smote[:, :6]
+        smote_labels = smote[:,6:]
+        smote_end = smote_labels[:,-1][:, None]  # Make 2D array
+        fl_store = []
+        # Instantiate the cross validator
+        skf = KFold(n_splits=k_folds, shuffle=shuffle)
+        # Loop through the indices the split() method returns
+        for _, (train_indices, val_indices) in enumerate(skf.split(self.features_c, self.labels)):
+            # Generate batches from indices
+            xval_idx = self.idx[val_indices]
+            xtrain, xval = np.concatenate((self.features_c[train_indices], smote_features), axis=0), self.features_c[val_indices]
+            ytrain, yval = np.concatenate((self.labels[train_indices], smote_labels), axis=0), self.labels[val_indices]
+            yendtrain, yendval = np.concatenate((self.labels_end[train_indices], smote_end), axis=0), self.labels_end[val_indices]
+            fl_store.append(
+                (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
+                                 labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,
+                                 label_type=self.label_type),
+                 Features_labels(xval, yendval, yval, idx=xval_idx, scaler=self.scaler,
+                                 normalise_labels=self.normalise_labels,
+                                 labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,
+                                 label_type=self.label_type))
             )
         return fl_store
 

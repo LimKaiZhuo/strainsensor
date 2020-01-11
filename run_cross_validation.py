@@ -6,7 +6,7 @@ from own_package.features_labels_setup import load_data_to_fl
 import openpyxl
 
 
-def run_skf_conv1(inputs, plot_spline):
+def run_skf_conv1(inputs, plot_spline, smote_excel):
     shared, end, pre, filters, epochs, label_type = inputs
     hparams = create_hparams(shared_layers=[30,30], ts_layers=[5,5], cs_layers=[5,5],
                              shared=shared, end=end, pre=pre, filters=filters, epochs=epochs,
@@ -16,11 +16,15 @@ def run_skf_conv1(inputs, plot_spline):
     write_dir = create_results_directory('./results/skf',
                                          folders=['plots', 'models', 'learning rate plots'],
                                          excels=['skf_results'])
-    fl = load_data_to_fl('./excel/Data_loader_spline_full_onehot_R6e.xlsx',
+    fl = load_data_to_fl('./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
                          label_type=label_type,
                          normalise_labels=False,
                          norm_mask=[0, 0, 0, 1, 1, 1])
-    fl_store = fl.create_kf(k_folds=10, shuffle=True)
+
+    if smote_excel:
+        fl_store = fl.smote_kf_augment(k_folds=10, shuffle=True, smote_excel=smote_excel)
+    else:
+        fl_store = fl.create_kf(k_folds=10, shuffle=True)
 
     run_skf(model_mode='ann3', loss_mode='ann', fl=fl, fl_store=fl_store, hparams=hparams,
             skf_file=write_dir + '/skf_results.xlsx',
@@ -41,6 +45,8 @@ def run_skf_conv1(inputs, plot_spline):
     return write_dir
 
 
-inputs = [0,0,70,0,500, 'points']
-write_dir = run_skf_conv1(inputs, plot_spline=True)
+
+inputs = [0,0,894,0,51, 'cutoff']
+write_dir = run_skf_conv1(inputs, plot_spline=True, smote_excel=None)
 #plot_predicted_splines(write_dir='./results/skf10 archsinh', excel_dir='./results/skf10 archsinh/skf_results.xlsx', sheets=['conv1'], fn=6)
+#'./excel/smote_1.xlsx'

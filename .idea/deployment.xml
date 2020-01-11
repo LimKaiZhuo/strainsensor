@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" serverName="ec2-user@ec2-52-77-243-188.ap-southeast-1.compute.amazonaws.com:22">
+    <serverData>
+      <paths name="aws jiali">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/2D_material_project" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="ec2-user@ec2-52-77-243-188.ap-southeast-1.compute.amazonaws.com:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/ec2-user/2D_material_project" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>

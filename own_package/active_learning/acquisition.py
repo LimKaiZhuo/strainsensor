@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import openpyxl
 from openpyxl import load_workbook
-import os, time, gc, pickle
+import os, time, gc, pickle, itertools, math
 from typing import List
 from collections import Counter
 
@@ -13,9 +13,9 @@ from skopt import gp_minimize, gbrt_minimize, forest_minimize, dummy_minimize
 from skopt.space import Real, Integer, Categorical
 from skopt.utils import use_named_args
 from skopt.plots import plot_convergence
-
+from sklearn.metrics import pairwise_distances, pairwise_distances_chunked
 from own_package.features_labels_setup import load_data_to_fl
-from own_package.others import print_array_to_excel
+from own_package.others import print_array_to_excel, create_results_directory, print_df_to_excel
 
 from own_package.models.hul_model import HULMultiLossLayer
 from own_package.models.models import CrossStitchLayer
@@ -135,7 +135,7 @@ def features_to_features_input(fl, features_c, features_d) -> np.ndarray:
     return np.array(features_c.tolist() + features_dc_store)
 
 
-def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_run, normalise_labels,batch_runs=1,
+def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_run, normalise_labels, batch_runs=1,
                     norm_mask=None,
                     acquisition_file='./excel/acquisition_opt.xlsx'):
     """
@@ -195,10 +195,10 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
             features = np.array([x for x in params.values()])
             x = features[0]
             y = features[1]
-            if x+y>1:
+            if x + y > 1:
                 u = -y + 1
                 v = -x + 1
-                features[0:2] = np.array([u,v])
+                features[0:2] = np.array([u, v])
 
             # SVM Check
             p_class, distance = svm_ensemble_prediction(svm_store, features[0:2])
@@ -259,31 +259,30 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
         '''
 
         search_result = dummy_minimize(func=fitness,
-                                        dimensions=space,
-                                        n_calls=total_run,
-                                        verbose=False)
+                                       dimensions=space,
+                                       n_calls=total_run,
+                                       verbose=False)
 
         plot_convergence(search_result)
         x_iters = search_result.x_iters
         for idx, row in enumerate(x_iters):
             x, y = row[0:2]
-            if x+y>1:
+            if x + y > 1:
                 u = -y + 1
                 v = -x + 1
-                x_iters[idx][0:2] = [u,v]
-
+                x_iters[idx][0:2] = [u, v]
 
         func_val = -search_result.func_vals
         best_x = search_result.x
 
-        p_mean_name = np.array(['Pmean_' + str(x) for x in list(map(str, np.arange(1,4)))])
-        p_std_name = np.array(['Pstd_' + str(x) for x in list(map(str, np.arange(1,4)))])
+        p_mean_name = np.array(['Pmean_' + str(x) for x in list(map(str, np.arange(1, 4)))])
+        p_std_name = np.array(['Pstd_' + str(x) for x in list(map(str, np.arange(1, 4)))])
         p_sm_name = np.array(['Ps/m_' + str(x) for x in list(map(str, np.arange(1, 4)))])
 
         mean = np.array(prediction_mean_store)
         std = np.array(prediction_std_store)
-        sm = np.array(prediction_std_store)/np.array(prediction_mean_store)
-        a2 = (np.array(l2_dist_store)*np.sum(sm, axis=1)).reshape((-1,1))
+        sm = np.array(prediction_std_store) / np.array(prediction_mean_store)
+        a2 = (np.array(l2_dist_store) * np.sum(sm, axis=1)).reshape((-1, 1))
 
         data = np.concatenate((np.array(x_iters),
                                func_val.reshape((-1, 1)),
@@ -340,3 +339,60 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
 
         instance_end = time.time()
         print('Batch {} completed. Time taken: {}'.format(batch + 1, instance_end - instance_start))
+
+
+def l2_points_opt(numel, write_dir, svm_directory, seed_number_of_expt, total_expt):
+    write_dir = create_results_directory(results_directory=write_dir, excels=['l2_acq'])
+    svm_store = load_svm_ensemble(svm_directory)
+    base = [x / (numel * 2 - 1) for x in list(range(numel * 2))]
+    compositions = [[x, y] if x + y <= 1 else [-x + 1, -y + 1] for x, y in
+                    list(itertools.product(base[::2], base[1::2]))]
+
+    distance_store = []
+    for model in svm_store:
+        distance_store.append(model.model.decision_function(compositions))
+
+    distance = np.mean(np.array(distance_store), axis=0)
+    valid_compositions = [x for x, dist in zip(compositions, distance) if dist >= 0]
+
+    print('Number of compositions = {}. % valid = {}%'.format(len(valid_compositions),
+                                                             len(valid_compositions) / len(compositions)*100))
+
+    number_valid_compositions = round(math.sqrt(len(valid_compositions)))
+    compositions_thickness = list(itertools.product(valid_compositions,
+                                                    [x / (number_valid_compositions- 1)
+                                                     for x in list(range(number_valid_compositions))]))
+
+    print('Number of permutations = {}'.format(len(compositions_thickness*3)))
+
+    all_permutations = np.array([x[0] + [x[1]] + y
+                                 for x in compositions_thickness for y in [[1, 0, 0], [0, 1, 0], [0, 0, 1]]])
+
+    expt_idx = np.random.randint(0, len(all_permutations), seed_number_of_expt)
+
+    expt_store = all_permutations[expt_idx,:]
+
+    for i in range(total_expt-seed_number_of_expt):
+        start = time.time()
+        d = pairwise_distances(expt_store, all_permutations, metric='euclidean')
+        next_expt = np.argmax(np.min(d, axis=0))
+        expt_store = np.concatenate((expt_store, all_permutations[next_expt, None, :]), axis=0)
+        end = time.time()
+        print('{} out of {} completed. Time taken = {}.'.format(i+1,total_expt-seed_number_of_expt, end-start))
+
+    expt_store[:,2] = expt_store[:,2]*2000
+
+    write_excel = '{}/l2_acq.xlsx'.format(write_dir)
+    wb = openpyxl.load_workbook(write_excel)
+    wb.create_sheet('l2_acq')
+    ws = wb[wb.sheetnames[-1]]
+    ws.cell(1,1).value = 'Valid Combinations'
+    ws.cell(1,2).value = len(all_permutations)
+    ws.cell(1,3).value = 'Seed Expt'
+    ws.cell(1,4).value = seed_number_of_expt
+    df = pd.DataFrame(data=expt_store, columns=['CNT', 'PVA', 'Thickness', '0D', '1D', '2D'],
+                      index=list(range(1,total_expt+1)))
+    print_df_to_excel(df=df, ws=ws, start_row=2)
+
+    wb.save(write_excel)
+    pass

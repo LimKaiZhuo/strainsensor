@@ -203,13 +203,17 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
             return loss
     elif model_mode == 'ann3':
         start_time = time.time()
-        bounds = [[10, 300, ],
+
+        # bounds = [[10, 300, ],
+        #          [50, 800]]
+        bounds = [[50, 900, ],
                   [50, 800]]
 
         pre = Integer(low=bounds[0][0], high=bounds[0][1], name='pre')
         epochs = Integer(low=bounds[1][0], high=bounds[1][1], name='epochs')
         dimensions = [pre, epochs]
         default_parameters = [70,  500]
+
 
         @use_named_args(dimensions=dimensions)
         def fitness(pre, epochs):

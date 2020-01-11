@@ -1,12 +1,4 @@
 import numpy as np
-from own_package.preprocess import read_excel_data, line_optimisation
-from sklearn.preprocessing import MinMaxScaler
-from own_package.active_learning.acquisition import load_model_ensemble
-from own_package.features_labels_setup import load_data_to_fl
-import keras.backend as K
-from keras.engine.topology import Layer
-from keras.layers import Input
-from keras.models import Model
 import pickle
 import matplotlib.pyplot as plt
 from own_package.active_learning.acquisition import features_to_features_input, \
@@ -14,7 +6,8 @@ from own_package.active_learning.acquisition import features_to_features_input, 
 from own_package.svm_classifier import SVMmodel
 from own_package.hparam_opt import grid_hparam_opt
 from own_package.spline_analysis import plot_arcsinh_predicted_splines
-from own_package.model_combination import combine_excel_results, cutoff_combine_excel_results, mse_tracker
+from own_package.model_combination import combine_excel_results, cutoff_combine_excel_results, mse_tracker, final_prediction_results
+from own_package.others import create_results_directory
 
 
 def test(selector, number=None):
@@ -80,7 +73,15 @@ def test(selector, number=None):
                                      sheets=['svr', 'dtr', 'ann3'],
                                      results_excel_dir='./results/combination {}/combination CM R{}.xlsx'.format(number, number),
                                      plot_dir='./results/combination {}/plots'.format(number),
-                                     plot_mode=True,
+                                     plot_mode=False,
+                                     fn=6, numel=3)
+    elif selector == 6.1:
+        cutoff_combine_excel_results(dir_store=['./results/hparams_opt Round {} DTR'.format(number),
+                                                './results/hparams_opt Round {} ANN3 - 2'.format(number)],
+                                     sheets=['dtr', 'ann3'],
+                                     results_excel_dir='./results/combination {}/combination CM R{}.xlsx'.format(number, number),
+                                     plot_dir='./results/combination {}/plots'.format(number),
+                                     plot_mode=False,
                                      fn=6, numel=3)
 
     elif selector == 7:
@@ -89,22 +90,95 @@ def test(selector, number=None):
         print(mean, std)
 
     elif selector == 8:
-        mse_tracker(excel_store=['./results/combination {}/combination CM R{} - 4.xlsx'.format(1, 1),
-                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(2, 2),
-                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(3, 3),
-                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(4, 4),
-                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(5, 5),
-                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(6, 6),
-                                 './results/combination {}/combination CM R{} - 4.xlsx'.format('6e', '6e'),
-                                 './results/combination {}/combination CM R{} - 4.xlsx'.format(7, 7),
-                                 './results/combination {}/combination CM R{} - 5.xlsx'.format(8, 8),
-                                 './results/combination {}/combination CM R{} - 2.xlsx'.format(9,9)],
+        mse_tracker(excel_store=['./results/combination {}/combination CM R{}.xlsx'.format(1, 1),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(2, 2),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(3, 3),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(4, 4),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(5, 5),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(6, 6),
+                                 './results/combination {}/combination CM R{}.xlsx'.format('6e', '6e'),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(7, 7),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(8, 8),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(9,9),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(10,10),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(11,11),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(12,12),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(13,13)],
                     write_excel='./MSE tracker.xlsx',
-                    rounds=[1,2,3,4,5,6,'6e',7,8,9],
-                    headers=['SVR', 'DTR', 'ANN3', 'Combined'])
+                    rounds=[1,2,3,4,5,6,'6e',7,8,9, 10, 11,12,13],
+                    headers=['SVR', 'DTR', 'ANN3', 'Combined'],
+                    fn=6, numel=3)
+    elif selector == 9:
+        write_dir = create_results_directory(results_directory='./results/final_prediction', excels=['final_prediction'])
+        final_prediction_results(write_excel='{}/final_prediction.xlsx'.format(write_dir),
+                                 model_dir_store=
+                                 ['./results/combination {}/models'.format(1),
+                                  './results/combination {}/models'.format(2),
+                                  './results/combination {}/models'.format(3),
+                                  './results/combination {}/models'.format(4),
+                                  './results/combination {}/models'.format(5),
+                                  './results/combination {}/models'.format(6),
+                                  './results/combination {}/models'.format('6e'),
+                                  './results/combination {}/models'.format(7),
+                                  './results/combination {}/models'.format(8),
+                                  './results/combination {}/models'.format(9),
+                                  './results/combination {}/models'.format(10),
+                                  './results/combination {}/models'.format(11),
+                                  './results/combination {}/models'.format(12),
+                                  './results/combination {}/models'.format(13)]
+                                 ,
+                                 combined_excel_store=
+                                 ['./results/combination {}/combination CM R{}.xlsx'.format(1, 1),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(2, 2),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(3, 3),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(4, 4),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(5, 5),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(6, 6),
+                                  './results/combination {}/combination CM R{}.xlsx'.format('6e', '6e'),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(7, 7),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(8, 8),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(9, 9),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(10, 10),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(11, 11),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(12, 12),
+                                  './results/combination {}/combination CM R{}.xlsx'.format(13, 13)
+                                  ],
+                                 excel_loader_dir_store=
+                                 ['./excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(1, 1),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(2, 2),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(3, 3),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(4, 4),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(5, 5),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(6, 6),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format('6e', '6e'),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(7, 7),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(8, 8),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(9, 9),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(10, 10),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(11, 11),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(12, 12),
+                                  './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(13, 13)]
+                                 ,
+                                 rounds=[1,2,3,4,5,6,'6e',7,8,9,10,11,12,13],
+                                 fn=6, numel=3
+                                 )
 
+'''
+['./results/combination {}/models'.format(1),
+                                  './results/combination {}/models'.format(2),
+                                  './results/combination {}/models'.format(3),
+                                  './results/combination {}/models'.format(4),
+                                  './results/combination {}/models'.format(5),
+                                  './results/combination {}/models'.format(6),
+                                  './results/combination {}/models'.format('6e'),
+                                  './results/combination {}/models'.format(7),
+                                  './results/combination {}/models'.format(8),
+                                  './results/combination {}/models'.format(9),
+                                  './results/combination {}/models'.format(10),
+                                  './results/combination {}/models'.format(11)]
+'''
 
-
+#test(9)
 test(8)
 #test(6, number=1)
 #test(6, number=2)
@@ -116,6 +190,10 @@ test(8)
 #test(6, number=7)
 #test(6, number=8)
 #test(6, number=9)
+#test(6, number=10)
+#test(6, number=11)
+#test(6, number=12)
+#test(6, number=13)
 '''
 test(6, number=2)
 test(6, number=3)
