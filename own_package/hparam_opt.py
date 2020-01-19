@@ -16,7 +16,7 @@ from .cross_validation import run_skf
 from own_package.others import print_array_to_excel
 
 def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, save_model_dir,
-               total_run, instance_per_run=3, save_model=False,
+               total_run, instance_per_run=3, save_model=False, scoring='mse',
                plot_dir=None):
     """
      names = ['shared_1_l', 'shared_1_h',
@@ -207,12 +207,12 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
         # bounds = [[10, 300, ],
         #          [50, 800]]
         bounds = [[50, 900, ],
-                  [50, 800]]
+                  [50, 1500]]
 
         pre = Integer(low=bounds[0][0], high=bounds[0][1], name='pre')
         epochs = Integer(low=bounds[1][0], high=bounds[1][1], name='epochs')
         dimensions = [pre, epochs]
-        default_parameters = [70,  500]
+        default_parameters = [70,  50]
 
 
         @use_named_args(dimensions=dimensions)
@@ -232,7 +232,7 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
                     plot_name = None
                 mse = run_skf(model_mode=model_mode, loss_mode=loss_mode, fl=fl, fl_store=fl_store, hparams=hparams,
                               skf_file=hparam_file, skf_sheet='_' + str(run_count) + '_' + str(cnt),
-                              k_folds=10, k_shuffle=True,
+                              k_folds=10, k_shuffle=True, scoring=scoring,
                               save_model_name='hparam_' + str(run_count) + '_' + str(cnt + 1), save_model=save_model,
                               save_model_dir=save_model_dir,
                               plot_name=plot_name)
@@ -244,14 +244,14 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
             print('**************************************************************************************************\n'
                   'Run Number {} \n'
                   'Instance per run {} \n'
-                  'Current run MSE {} \n'
+                  'Current run {} {} \n'
                   'Time Taken: {}\n'
                   '*********************************************************************************************'.format(
-                run_count, instance_per_run, mse_avg, end_time - start_time))
+                run_count, instance_per_run, scoring, mse_avg, end_time - start_time))
             return loss
     elif model_mode == 'dtr':
         start_time = time.time()
-        bounds = [[3, 30, ],
+        bounds = [[2, 50, ],
                   [1, 500]]
 
         depth = Integer(low=bounds[0][0], high=bounds[0][1], name='depth')
@@ -274,7 +274,7 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
                     plot_name = None
                 mse = run_skf(model_mode=model_mode, loss_mode=loss_mode, fl=fl, fl_store=fl_store, hparams=hparams,
                               skf_file=hparam_file, skf_sheet='_' + str(run_count) + '_' + str(cnt),
-                              k_folds=10, k_shuffle=True,
+                              k_folds=10, k_shuffle=True, scoring=scoring,
                               save_model_name='hparam_' + str(run_count) + '_' + str(cnt + 1), save_model=save_model,
                               save_model_dir=save_model_dir,
                               plot_name=plot_name)
@@ -286,20 +286,20 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
             print('**************************************************************************************************\n'
                   'Run Number {} \n'
                   'Instance per run {} \n'
-                  'Current run MSE {} \n'
+                  'Current run {} {} \n'
                   'Time Taken: {}\n'
                   '*********************************************************************************************'.format(
-                run_count, instance_per_run, mse_avg, end_time - start_time))
+                run_count, instance_per_run, scoring, mse_avg, end_time - start_time))
             return loss
     elif model_mode == 'svr':
         start_time = time.time()
-        bounds = [[0.001, 0.4, ],
-                  [0.01, 100]]
+        bounds = [[0.00005, 0.001, ],
+                  [0.0005, 0.01]]
 
         epsilon = Real(low=bounds[0][0], high=bounds[0][1], name='epsilon')
         c = Real(low=bounds[1][0], high=bounds[1][1], name='c')
         dimensions = [epsilon, c]
-        default_parameters = [0.1, 1]
+        default_parameters = [0.0001, 0.001]
 
         @use_named_args(dimensions=dimensions)
         def fitness(epsilon, c):
@@ -316,7 +316,7 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
                     plot_name = None
                 mse = run_skf(model_mode=model_mode, loss_mode=loss_mode, fl=fl, fl_store=fl_store, hparams=hparams,
                               skf_file=hparam_file, skf_sheet='_' + str(run_count) + '_' + str(cnt),
-                              k_folds=10, k_shuffle=True,
+                              k_folds=10, k_shuffle=True, scoring=scoring,
                               save_model_name='hparam_' + str(run_count) + '_' + str(cnt + 1), save_model=save_model,
                               save_model_dir=save_model_dir,
                               plot_name=plot_name)
@@ -328,10 +328,10 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
             print('**************************************************************************************************\n'
                   'Run Number {} \n'
                   'Instance per run {} \n'
-                  'Current run MSE {} \n'
+                  'Current run {} {} \n'
                   'Time Taken: {}\n'
                   '*********************************************************************************************'.format(
-                run_count, instance_per_run, mse_avg, end_time - start_time))
+                run_count, instance_per_run, scoring, mse_avg, end_time - start_time))
             return loss
 
     search_result = gp_minimize(func=fitness,

@@ -78,5 +78,22 @@ def print_df_to_excel(df, ws, start_row=1, start_col=1, index=True, header=True)
         else:
             skip_count += 1
 
+
+def create_excel_file(excel_name):
+    while os.path.isfile(excel_name):
+        expand = 1
+        while True:
+            expand += 1
+            new_file_name = excel_name.split('.xlsx')[0] + ' - ' + str(expand) + '.xlsx'
+            if os.path.isfile(new_file_name):
+                continue
+            else:
+                excel_name = new_file_name
+                break
+    print('Writing into' + excel_name + '\n')
+    wb = openpyxl.Workbook()
+    wb.save(excel_name)
+    return excel_name
+
 if __name__ == '__main__':
     print('hi')

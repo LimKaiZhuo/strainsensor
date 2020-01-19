@@ -13,7 +13,6 @@ from sklearn.metrics import mean_squared_error
 from scipy.optimize import curve_fit
 from scipy.integrate import simps, trapz
 from scipy.interpolate import CubicSpline, UnivariateSpline, PchipInterpolator
-import csaps
 from own_package.features_labels_setup import Features_labels_grid
 
 

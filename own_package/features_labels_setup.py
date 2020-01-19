@@ -4,13 +4,13 @@ import pandas as pd
 from openpyxl import load_workbook
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import StratifiedKFold, KFold, LeaveOneOut
-from keras.utils import to_categorical
 import pickle
 import os
 import pathlib
 import warnings
 import copy
 import xlrd
+from own_package.smote.smote_code import produce_smote
 from .others import print_array_to_excel
 
 
@@ -243,6 +243,40 @@ class Features_labels:
         for _, (train_indices, val_indices) in enumerate(skf.split(self.features_c, self.labels)):
             # Generate batches from indices
             xval_idx = self.idx[val_indices]
+            xtrain, xval = np.concatenate((self.features_c[train_indices], smote_features), axis=0), self.features_c[val_indices]
+            ytrain, yval = np.concatenate((self.labels[train_indices], smote_labels), axis=0), self.labels[val_indices]
+            yendtrain, yendval = np.concatenate((self.labels_end[train_indices], smote_end), axis=0), self.labels_end[val_indices]
+            fl_store.append(
+                (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
+                                 labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,
+                                 label_type=self.label_type),
+                 Features_labels(xval, yendval, yval, idx=xval_idx, scaler=self.scaler,
+                                 normalise_labels=self.normalise_labels,
+                                 labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,
+                                 label_type=self.label_type))
+            )
+        return fl_store
+
+    def fold_smote_kf_augment(self, numel, k_folds, shuffle=True):
+        """
+        Same as kf above. But appends all smote data to each fold's training examples. Validation examples no change.
+        :param smote_excel:
+        :param k_folds:
+        :param shuffle:
+        :return:
+        """
+        fl_store = []
+        # Instantiate the cross validator
+        skf = KFold(n_splits=k_folds, shuffle=shuffle)
+        # Loop through the indices the split() method returns
+        for _, (train_indices, val_indices) in enumerate(skf.split(self.features_c, self.labels)):
+            # Generate batches from indices
+            xval_idx = self.idx[val_indices]
+            smote_features, smote_labels = produce_smote(self.features_c[train_indices],
+                                                         self.labels[train_indices], numel=numel)
+            smote_end = smote_labels[:,None,-1]
             xtrain, xval = np.concatenate((self.features_c[train_indices], smote_features), axis=0), self.features_c[val_indices]
             ytrain, yval = np.concatenate((self.labels[train_indices], smote_labels), axis=0), self.labels[val_indices]
             yendtrain, yendval = np.concatenate((self.labels_end[train_indices], smote_end), axis=0), self.labels_end[val_indices]

@@ -12,12 +12,11 @@ import time, os, pickle
 # Own Scripts
 from own_package.models.models import MTmodel, Kmodel, Pmodel
 from own_package.svr import SVRmodel, MIMOSVRmodel, DTRmodel, Predict_SVR_DTR
-from own_package.models.hul_model import HULMTmodel
 from .others import print_array_to_excel
 from .features_labels_setup import load_data_to_fl
 
 def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
-            skf_file, label_type='cutoff',
+            skf_file, label_type='cutoff', scoring='mse',
             skf_sheet=None,
             k_folds=10, k_shuffle=True,
             save_model=False, save_model_name=None, save_model_dir=None,
@@ -44,20 +43,23 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
     val_features_c = []
     val_labels = []
     for fold, fl_tuple in enumerate(fl_store):
-        sess = tf.compat.v1.Session()
-        #sess = tf.Session()
-        K.set_session(sess)
         instance_start = time.time()
         (ss_fl, i_ss_fl) = fl_tuple  # ss_fl is training fl, i_ss_fl is validation fl
 
         # Set up model
         if loss_mode == 'normal':
+            sess = tf.compat.v1.Session()
+            # sess = tf.Session()
+            K.set_session(sess)
             model = MTmodel(fl=ss_fl, mode=model_mode, hparams=hparams, labels_norm=labels_norm)
         elif loss_mode == 'hul':
             model = HULMTmodel(fl=ss_fl, mode=model_mode, hparams=hparams, labels_norm=labels_norm)
             print('HUL Standard Deviation Values:')
             print([np.exp(K.get_value(log_var[0])) ** 0.5 for log_var in model.model.layers[-1].log_vars])
         elif loss_mode == 'ann':
+            sess = tf.compat.v1.Session()
+            # sess = tf.Session()
+            K.set_session(sess)
             model = Kmodel(fl=ss_fl, mode=model_mode, hparams=hparams)
         elif loss_mode == 'p_model':
             model = Pmodel(fl=ss_fl, mode=model_mode, hparams=hparams)
@@ -126,8 +128,9 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
 
         # Need to put the next 3 lines if not memory will run out
         del model
-        K.clear_session()
-        sess.close()
+        if loss_mode == 'normal' or loss_mode == 'ann':
+            K.clear_session()
+            sess.close()
         gc.collect()
 
         # Preparing data to put into new_df that consists of all the validation dataset and its predicted labels
@@ -146,13 +149,14 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
         print(
             '\nFor k-fold run {} out of {}. Each fold has {} examples. Model is {} with {} loss. Time taken for '
             'instance = {}\n'
-            'Post-training results: \nmse = {}, mse_norm = {}\n'
+            'Post-training results: \nmse = {}, mse_norm = {}. Scoring is {}\n'
             '####################################################################################################'
                 .format(fold + 1, k_folds, i_ss_fl.count, model_mode, loss_mode, instance_end - instance_start, mse,
-                        mse_norm))
+                        mse_norm, scoring))
 
     mse_avg = np.average(mse_store)
     mse_norm_avg = np.average(mse_norm_store)
+    re = np.average(np.abs(np.array(val_labels) - np.array(predicted_labels_store))/np.array(val_labels))
 
     # Calculating metrics based on complete validation prediction
     mse_full = mean_squared_error(val_labels, predicted_labels_store)
@@ -208,9 +212,9 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
 
     # Writing other subset split, instance per run, and bounds
     ws = wb[sheet_name]
-    headers = ['mse', 'mse_norm']
+    headers = ['mse', 'mse_norm', 're']
     values = [mse_avg, mse_norm_avg]
-    values_full = [mse_full, mse_norm_full]
+    values_full = [mse_full, mse_norm_full, re]
     print_array_to_excel(np.array(headers), (1 + start_row, start_col + 1), ws, axis=1)
     print_array_to_excel(np.array(values), (2 + start_row, start_col + 1), ws, axis=1)
     print_array_to_excel(np.array(values_full), (3 + start_row, start_col + 1), ws, axis=1)
@@ -220,4 +224,9 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
     pd_writer.close()
     wb.close()
 
-    return mse_full
+    if scoring == 'mse':
+        return mse_full
+    elif scoring == 're':
+        return re
+    else:
+        raise KeyError('Scoring function {} is not valid'.format(scoring))

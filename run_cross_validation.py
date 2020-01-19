@@ -6,11 +6,12 @@ from own_package.features_labels_setup import load_data_to_fl
 import openpyxl
 
 
-def run_skf_conv1(inputs, plot_spline, smote_excel):
+def run_skf_conv1(inputs, plot_spline, smote_numel):
     shared, end, pre, filters, epochs, label_type = inputs
     hparams = create_hparams(shared_layers=[30,30], ts_layers=[5,5], cs_layers=[5,5],
                              shared=shared, end=end, pre=pre, filters=filters, epochs=epochs,
                              reg_l1=0.05, reg_l2=0.,
+                             max_depth=5, num_est=200,
                              activation='relu', batch_size=16, verbose=0)
 
     write_dir = create_results_directory('./results/skf',
@@ -18,15 +19,15 @@ def run_skf_conv1(inputs, plot_spline, smote_excel):
                                          excels=['skf_results'])
     fl = load_data_to_fl('./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
                          label_type=label_type,
-                         normalise_labels=False,
+                         normalise_labels=True,
                          norm_mask=[0, 0, 0, 1, 1, 1])
 
-    if smote_excel:
-        fl_store = fl.smote_kf_augment(k_folds=10, shuffle=True, smote_excel=smote_excel)
+    if smote_numel:
+        fl_store = fl.smote_kf_augment(k_folds=10, shuffle=True, numel=smote_numel)
     else:
         fl_store = fl.create_kf(k_folds=10, shuffle=True)
 
-    run_skf(model_mode='ann3', loss_mode='ann', fl=fl, fl_store=fl_store, hparams=hparams,
+    run_skf(model_mode='dtr', loss_mode='dtr', fl=fl, fl_store=fl_store, hparams=hparams,
             skf_file=write_dir + '/skf_results.xlsx',
             skf_sheet=None,
             k_folds=10, k_shuffle=True, save_model=True, save_model_name=None, save_model_dir=write_dir + '/models/',
@@ -47,6 +48,6 @@ def run_skf_conv1(inputs, plot_spline, smote_excel):
 
 
 inputs = [0,0,894,0,51, 'cutoff']
-write_dir = run_skf_conv1(inputs, plot_spline=True, smote_excel=None)
+write_dir = run_skf_conv1(inputs, plot_spline=True, smote_numel=1050)
 #plot_predicted_splines(write_dir='./results/skf10 archsinh', excel_dir='./results/skf10 archsinh/skf_results.xlsx', sheets=['conv1'], fn=6)
 #'./excel/smote_1.xlsx'

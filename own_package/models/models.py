@@ -6,6 +6,7 @@ from tensorflow.python.keras.layers.convolutional import Conv1D
 from tensorflow.python.keras import regularizers
 from tensorflow.python.keras import backend as K
 from tensorflow.keras.optimizers import Adam
+from tensorflow.python.keras.losses import MeanAbsolutePercentageError
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import numpy as np
@@ -336,7 +337,7 @@ class Kmodel:
             #loss_weights = np.arange(1, 20)
             return K.mean(K.square(y_pred - y_true)*loss_weights, axis=-1)
 
-        self.model.compile(optimizer=optimizer, loss='mean_squared_error')
+        self.model.compile(optimizer=optimizer, loss=MeanAbsolutePercentageError())
         #self.model.summary()
 
     def train_model(self, fl, i_fl,
