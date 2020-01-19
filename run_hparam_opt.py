@@ -7,71 +7,79 @@ def selector(case,**kwargs):
         loader_excel = kwargs['loader_excel']
         save_model = kwargs['save_model']
         round = kwargs['round']
-
-        write_dir = create_results_directory('./results/hparams_opt round {} SVR'.format(round),
-                                             folders=['plots', 'models', 'learning rate plots'],
-                                             excels=['skf_results', 'hparam_results'])
-        fl = load_data_to_fl(loader_excel, normalise_labels=True,
-                             label_type='cutoff',
-                             norm_mask=[0,1,3,4,5])
-        fl_store = fl.create_kf(k_folds=10, shuffle=True)
-        hparam_opt(model_mode='svr', loss_mode='svr', fl_in=fl, fl_store_in=fl_store,
-                   norm_mask=[0,1,3,4,5],
-                   total_run=120, instance_per_run=1, write_dir=write_dir,
-                   save_model=save_model, save_model_dir=write_dir + '/models/',
-                   plot_dir=None)
+        smote_numel = kwargs['smote_numel']
+        smote_excel = kwargs['smote_excel']
+        scoring = kwargs['scoring']
 
         write_dir = create_results_directory('./results/hparams_opt round {} DTR'.format(round),
                                              folders=['plots', 'models', 'learning rate plots'],
                                              excels=['skf_results', 'hparam_results'])
         fl = load_data_to_fl(loader_excel, normalise_labels=True,
                              label_type='cutoff',
-                             norm_mask=[0,1,3,4,5])
-        fl_store = fl.create_kf(k_folds=10, shuffle=True)
+                             norm_mask=[0, 1, 3, 4, 5])
+        if smote_numel:
+            fl_store = fl.fold_smote_kf_augment(numel=smote_numel, k_folds=10, shuffle=True)
+        elif smote_excel:
+            fl_store = fl.smote_kf_augment(smote_excel=smote_excel, k_folds=10, shuffle=True)
+        else:
+            fl_store = fl.create_kf(k_folds=10, shuffle=True)
         hparam_opt(model_mode='dtr', loss_mode='dtr', fl_in=fl, fl_store_in=fl_store,
-                   norm_mask=[0,1,3,4,5],
+                   norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
                    total_run=120, instance_per_run=1, write_dir=write_dir,
                    save_model=save_model, save_model_dir=write_dir + '/models/',
                    plot_dir=None)
-
-        write_dir = create_results_directory('./results/hparams_opt round {} ANN3'.format(round),
-                                             folders=['plots', 'models', 'learning rate plots'],
-                                             excels=['skf_results', 'hparam_results'])
-        fl = load_data_to_fl(loader_excel, normalise_labels=False,
-                             label_type='cutoff',
-                             norm_mask=[0,1,3,4,5])
-        fl_store = fl.create_kf(k_folds=10, shuffle=True)
-        hparam_opt(model_mode='ann3', loss_mode='ann', fl_in=fl, fl_store_in=fl_store,
-                   norm_mask=[0,1,3,4,5],
-                   total_run=120, instance_per_run=1, write_dir=write_dir,
-                   save_model=save_model, save_model_dir=write_dir + '/models/',
-                   plot_dir=None)
-    elif case==2:
-        # For classifier
-        loader_excel = kwargs['loader_excel']
-        save_model = kwargs['save_model']
-        round = kwargs['round']
-
-        write_dir = create_results_directory('./results/hparams_opt round {} DTC'.format(round),
+        '''
+        write_dir = create_results_directory('./results/hparams_opt round {} SVR'.format(round),
                                              folders=['plots', 'models', 'learning rate plots'],
                                              excels=['skf_results', 'hparam_results'])
         fl = load_data_to_fl(loader_excel, normalise_labels=True,
                              label_type='cutoff',
                              norm_mask=[0, 1, 3, 4, 5])
-        fl_store = fl.create_kf(k_folds=10, shuffle=True)
-        hparam_opt(model_mode='dtc', loss_mode=None, fl_in=fl, fl_store_in=fl_store,
-                   norm_mask=[0, 1, 3, 4, 5],
-                   total_run=15, instance_per_run=1, write_dir=write_dir,
+        if smote_numel:
+            fl_store = fl.fold_smote_kf_augment(numel=smote_numel, k_folds=10, shuffle=True)
+        elif smote_excel:
+            fl_store = fl.smote_kf_augment(smote_excel=smote_excel, k_folds=10, shuffle=True)
+        else:
+            fl_store = fl.create_kf(k_folds=10, shuffle=True)
+        hparam_opt(model_mode='svr', loss_mode='svr', fl_in=fl, fl_store_in=fl_store,
+                   norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
+                   total_run=30, instance_per_run=1, write_dir=write_dir,
                    save_model=save_model, save_model_dir=write_dir + '/models/',
                    plot_dir=None)
 
-selector(case=2, round=13, loader_excel='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx', save_model=True)
+        
+        
+        write_dir = create_results_directory('./results/hparams_opt round {} ANN3'.format(round),
+                                             folders=['plots', 'models', 'learning rate plots'],
+                                             excels=['skf_results', 'hparam_results'])
+        fl = load_data_to_fl(loader_excel, normalise_labels=False,
+                             label_type='cutoff',
+                             norm_mask=[0, 1, 3, 4, 5])
+        if smote_numel:
+            fl_store = fl.fold_smote_kf_augment(numel=smote_numel, k_folds=10, shuffle=True)
+        elif smote_excel:
+            fl_store = fl.smote_kf_augment(smote_excel=smote_excel, k_folds=10, shuffle=True)
+        else:
+            fl_store = fl.create_kf(k_folds=10, shuffle=True)
+        hparam_opt(model_mode='ann3', loss_mode='ann', fl_in=fl, fl_store_in=fl_store,
+                   norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
+                   total_run=120, instance_per_run=1, write_dir=write_dir,
+                   save_model=save_model, save_model_dir=write_dir + '/models/',
+                   plot_dir=None)
+                   
+         
+       '''
 
+
+
+selector(case=1, round=13, loader_excel='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx', save_model=True,
+         smote_numel=3300, smote_excel=None, scoring='re')
 #selector(case=1, round=1, loader_excel='./excel/Data_loader_spline_full_onehot_R1_cut_CM3.xlsx', save_model=True)
 #selector(case=1, round=2, loader_excel='./excel/Data_loader_spline_full_onehot_R2_cut_CM3.xlsx', save_model=True)
 #selector(case=1, round=3, loader_excel='./excel/Data_loader_spline_full_onehot_R3_cut_CM3.xlsx', save_model=True)
 #selector(case=1, round=4, loader_excel='./excel/Data_loader_spline_full_onehot_R4_cut_CM3.xlsx', save_model=True)
 #selector(case=1, round=5, loader_excel='./excel/Data_loader_spline_full_onehot_R5_cut_CM3.xlsx', save_model=True)
+
 #selector(case=1, round=6, loader_excel='./excel/Data_loader_spline_full_onehot_R6_cut_CM3.xlsx', save_model=True)
 #selector(case=1, round='6e', loader_excel='./excel/Data_loader_spline_full_onehot_R6e_cut_CM3.xlsx', save_model=True)
 #selector(case=1, round=7, loader_excel='./excel/Data_loader_spline_full_onehot_R7_cut_CM3.xlsx', save_model=True)

@@ -1,6 +1,9 @@
-import keras.backend as K
-import tensorflow as tf
-from keras.models import load_model
+from tensorflow.python.keras import backend as K
+
+from tensorflow.python.keras.models import load_model
+from keras.utils import CustomObjectScope
+from keras.initializers import glorot_uniform
+
 import numpy as np
 import pandas as pd
 import openpyxl
@@ -17,8 +20,6 @@ from sklearn.metrics import pairwise_distances, pairwise_distances_chunked
 from own_package.features_labels_setup import load_data_to_fl
 from own_package.others import print_array_to_excel, create_results_directory, print_df_to_excel
 
-from own_package.models.hul_model import HULMultiLossLayer
-from own_package.models.models import CrossStitchLayer
 
 
 def load_svm_ensemble(model_directory) -> List:
@@ -92,13 +93,30 @@ def load_model_ensemble(model_directory) -> List:
         if name.endswith(".pkl"):
             model_store.append(pickle.load(open(name, 'rb')))
         elif name.endswith('.h5'):
-            model_store.append(load_model(name))
+            with CustomObjectScope({'GlorotUniform': glorot_uniform()}):
+                model_store.append(load_model(name))
+
         else:
             raise TypeError('{} found that does not end with .pkl or .h5'.format(name))
         print('Model {} has been loaded'.format(name))
 
     return model_store
 
+
+def load_model_chunks(chunks):
+    model_store = []
+    for name in chunks:
+        if name.endswith(".pkl"):
+            try:
+                model_store.append(pickle.load(open(name, 'rb')))
+            except EOFError:
+                print('EOFError with {}'.format(name))
+                model_store.append(None)
+        elif name.endswith('.h5'):
+            with CustomObjectScope({'GlorotUniform': glorot_uniform()}):
+                model_store.append(load_model(name))
+        print('Model {} has been loaded'.format(name))
+    return model_store
 
 def model_ensemble_prediction(model_store, features_c_norm):
     """

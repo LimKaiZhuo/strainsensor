@@ -11,10 +11,10 @@ import openpyxl
 from openpyxl import load_workbook
 import matplotlib.pyplot as plt
 
-from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, merge, Input, concatenate, Reshape, Permute, LSTM, \
+from tensorflow.python.keras.models import Sequential, Model
+from tensorflow.python.keras.layers import Dense, Dropout, merge, Input, concatenate, Reshape, Permute, LSTM, \
     TimeDistributed, RepeatVector, MaxPooling1D, BatchNormalization
-import keras
+import tensorflow.python.keras
 
 from own_package.others import print_array_to_excel, create_results_directory
 from own_package.models.models import ann

@@ -13,9 +13,7 @@ from sklearn.metrics import mean_squared_error
 from scipy.optimize import curve_fit
 from scipy.integrate import simps, trapz
 from scipy.interpolate import CubicSpline, UnivariateSpline, PchipInterpolator
-
 from own_package.features_labels_setup import Features_labels_grid
-from own_package.others import print_df_to_excel
 
 
 def round_sigfigs(num, sig_figs):
@@ -301,7 +299,6 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
     summary_store = []
     cutoff_store = []
     cutoff_store2 = []  # second method to do cutoff
-    class_store = []
     plot_store = []
     for strain, r in zip(strain_store, r_store):
         eval_x = np.linspace(0, strain[-1], num=discrete_points)  # To evaluate spline at
@@ -326,25 +323,29 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
             cutoff_store.append([cutoff_one, cutoff_two, strain[-1]])
             summary_store.append(np.concatenate([[strain[-1]], y_discrete]))
             plot_store.append([eval_x_plot, spline.__call__(eval_x_plot)])
+        elif spline_selector == 2:
+            # NOT IN USE
+            # csaps implementation
+            fitted_curve = csaps.UnivariateCubicSmoothingSpline(strain, r, smooth=0.7)
+            summary_store.append(np.concatenate([[strain[-1]], fitted_curve(eval_x)]))
+            plot_store.append([eval_x_plot, fitted_curve(eval_x_plot)])
+        elif spline_selector == 3:
+            # NOT IN USE
+            # Scripy implementation
+            spline = CubicSpline(strain, r)
+            # Store the processed labels. Labels for one example is 1d ndarray of
+            # [End_point of strain curve, r1, r2, r3, ... , r_end]
+            summary_store.append(np.concatenate([[strain[-1]], spline.__call__(eval_x)]))
+            plot_store.append([eval_x_plot, spline.__call__(eval_x_plot)])
 
         # Second cutoff method
         r = np.array(r)
         strain = np.array(strain)
         gf_store = (r[1:] - r[:-1])/(strain[1:] - strain[:-1])
-        classification = 0  # cut 10, cut 100, end are all different
         if gf_store[-1]<-1:
             cutoff_one = -1
             cutoff_two = -1
         else:
-            try:
-                cut_idx = np.where(gf_store>=cutoff[1])[0][0]
-                if strain[cut_idx] > 0:
-                    cutoff_two = strain[cut_idx]
-                else:
-                    cutoff_two = strain[cut_idx+1]
-            except IndexError:
-                cutoff_two = strain[-1]  # never reaches cut 100
-                classification = 2
             try:
                 cut_idx = np.where(gf_store>=cutoff[0])[0][0]
                 if strain[cut_idx] > 0:
@@ -353,13 +354,21 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
                     cutoff_one = strain[cut_idx+1]
             except IndexError:
                 cutoff_one = strain[-1]
-                classification = 1  # never reaches cut 10
+            try:
+                cut_idx = np.where(gf_store>=cutoff[1])[0][0]
+                if strain[cut_idx] > 0:
+                    cutoff_two = strain[cut_idx]
+                else:
+                    cutoff_two = strain[cut_idx+1]
+            except IndexError:
+                cutoff_two = strain[-1]
         cutoff_store2.append([cutoff_one, cutoff_two, strain[-1]])
-        class_store.append(classification)
 
 
 
     # Print to write_excel_file
+
+
     excel_name = write_dir + '/results.xlsx'
     wb = openpyxl.Workbook()
     wb.create_sheet('points')
@@ -404,15 +413,6 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
     for r_idx, row in enumerate(rows, 1):
         for c_idx, value in enumerate(row, 1):
             ws.cell(row=r_idx + 1, column=c_idx, value=value)
-
-    wb.create_sheet('class')
-    ws = wb['class']
-
-    header = np.array(range(np.shape(strain_store)[0])) + 1  # Index to label Exp 1, 2, 3, ...
-    columns = ['class']
-    header = list(header)
-    df_write = pd.DataFrame(class_store, index=header, columns=columns)
-    print_df_to_excel(df=df_write, ws=ws)
 
     wb.save(excel_name)
     wb.close()

@@ -179,7 +179,7 @@ def test(selector, number=None):
 '''
 
 #test(9)
-test(8)
+#test(8)
 #test(6, number=1)
 #test(6, number=2)
 #test(6, number=3)
@@ -194,6 +194,7 @@ test(8)
 #test(6, number=11)
 #test(6, number=12)
 #test(6, number=13)
+test(6, number='13s2')
 '''
 test(6, number=2)
 test(6, number=3)
