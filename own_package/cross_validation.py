@@ -6,14 +6,16 @@ import pandas as pd
 from pandas import Series
 import openpyxl
 from openpyxl import load_workbook
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, matthews_corrcoef
 import time, os, pickle
+import pycm
 
 # Own Scripts
 from own_package.models.models import MTmodel, Kmodel, Pmodel
 from own_package.svr import SVRmodel, MIMOSVRmodel, DTRmodel, Predict_SVR_DTR
 from own_package.models.hul_model import HULMTmodel
-from .others import print_array_to_excel
+from own_package.models.svr_dtr_classification import DTCmodel, Predict_SVC_DTC
+from .others import print_array_to_excel, print_df_to_excel
 from .features_labels_setup import load_data_to_fl
 
 def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
@@ -44,9 +46,6 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
     val_features_c = []
     val_labels = []
     for fold, fl_tuple in enumerate(fl_store):
-        sess = tf.compat.v1.Session()
-        #sess = tf.Session()
-        K.set_session(sess)
         instance_start = time.time()
         (ss_fl, i_ss_fl) = fl_tuple  # ss_fl is training fl, i_ss_fl is validation fl
 
@@ -58,8 +57,14 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
             print('HUL Standard Deviation Values:')
             print([np.exp(K.get_value(log_var[0])) ** 0.5 for log_var in model.model.layers[-1].log_vars])
         elif loss_mode == 'ann':
+            sess = tf.compat.v1.Session()
+            # sess = tf.Session()
+            K.set_session(sess)
             model = Kmodel(fl=ss_fl, mode=model_mode, hparams=hparams)
         elif loss_mode == 'p_model':
+            sess = tf.compat.v1.Session()
+            # sess = tf.Session()
+            K.set_session(sess)
             model = Pmodel(fl=ss_fl, mode=model_mode, hparams=hparams)
         elif loss_mode == 'svr':
             if not fl.normalise_labels:
@@ -126,8 +131,9 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
 
         # Need to put the next 3 lines if not memory will run out
         del model
-        K.clear_session()
-        sess.close()
+        if loss_mode == 'ann' or loss_mode == 'p_model':
+            K.clear_session()
+            sess.close()
         gc.collect()
 
         # Preparing data to put into new_df that consists of all the validation dataset and its predicted labels
@@ -221,3 +227,122 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
     wb.close()
 
     return mse_full
+
+
+def run_skf_classification(model_mode, fl, fl_store, hparams,
+            skf_file, label_type='cutoff',
+            skf_sheet=None,
+            k_folds=10, k_shuffle=True,
+            save_model=False, save_model_name=None, save_model_dir=None,
+            plot_name=None):
+    '''
+    Stratified k fold cross validation for training and evaluating model 2 only. Model 1 data is trained before hand.
+    :param model_mode: Choose between using SNN or cDNN (non_smiles) and SNN_smiles or cDNN_smiles
+    :param cv_mode: Cross validation mode. Either 'skf' or 'loocv'.
+    :param hparams: hparams dict containing hyperparameters information
+    :param loader_file: data_loader excel file location
+    :param skf_file: skf_file name to save excel file as
+    :param skf_sheet: name of sheet to save inside the skf_file excel. If None, will default to SNN or cDNN as name
+    :param k_folds: Number of k folds. Used only for skf cv_mode
+    :param k_shuffle: Whether to shuffle the given examples to split into k folds if using skf
+    :return:
+    '''
+
+    # Run k model instance to perform skf
+    predicted_labels_store = []
+    folds = []
+    val_idx = []
+    val_features_c = []
+    val_labels = []
+    for fold, fl_tuple in enumerate(fl_store):
+        instance_start = time.time()
+        (ss_fl, i_ss_fl) = fl_tuple  # ss_fl is training fl, i_ss_fl is validation fl
+
+        # Setting model and training
+        model = DTCmodel(max_depth=hparams['max_depth'], num_est=hparams['num_est'])
+        model.train_model(ss_fl)
+
+        # Evaluation
+        predicted_labels = model.eval(i_ss_fl)
+        predicted_labels_store.extend(predicted_labels)
+
+        # Saving model
+        if save_model:
+            # Set save_model_name
+            if isinstance(save_model_name, str):
+                save_model_name1 = save_model_name + '_' + model_mode + '_' + str(fold + 1)
+            else:
+                save_model_name1 = model_mode + '_' + str(fold + 1)
+
+            # Save model
+            print('Saving instance {} model in {}'.format(fold + 1, save_model_dir + save_model_name1 + '.h5'))
+            pickle.dump(Predict_SVC_DTC(model=model.model), open(save_model_dir + save_model_name1 + '.pkl', 'wb'))
+
+
+        # Preparing data to put into new_df that consists of all the validation dataset and its predicted labels
+        folds.extend([fold] * i_ss_fl.count)  # Make a col that contains the fold number for each example
+        if len(val_features_c):
+            val_features_c = np.concatenate((val_features_c, i_ss_fl.features_c), axis=0)
+        else:
+            # For first loop
+            val_features_c = i_ss_fl.features_c
+
+        val_labels.extend(i_ss_fl.labels_classification)
+        val_idx.extend(i_ss_fl.idx)
+
+        # Printing one instance summary.
+        instance_end = time.time()
+        print(
+            '\nFor k-fold run {} out of {}. Each fold has {} examples. Model is {}. Time taken for '
+            'instance = {}\n'
+            '####################################################################################################'
+                .format(fold + 1, k_folds, i_ss_fl.count, model_mode, instance_end - instance_start))
+
+    # Calculating metrics based on complete validation prediction
+    summary = pycm.ConfusionMatrix(actual_vector=val_labels, predict_vector=predicted_labels_store)
+    acc_macro = summary.ACC_Macro
+    f1_micro = summary.F1_Micro
+    mcc = matthews_corrcoef(y_true=val_labels, y_pred=predicted_labels_store)
+
+    # Creating dataframe to print into excel later.
+    new_df = np.concatenate((np.array(folds)[:, None],  # Convert 1d list to col. vector
+                             val_features_c,
+                             np.array(val_labels)[:, None],
+                             np.array(predicted_labels_store)[:, None])
+                            , axis=1)
+    headers = ['folds'] + \
+              list(map(str, fl.features_c_names)) + \
+              ['Class'] + \
+              ['P_Class']
+
+    # val_idx is the original position of the example in the data_loader
+    new_df = pd.DataFrame(data=new_df, columns=headers, index=val_idx)
+
+    print('Writing into' + skf_file)
+    wb = load_workbook(skf_file)
+
+    # Creating new worksheet. Even if SNN worksheet already exists, a new SNN1 ws will be created and so on
+    if skf_sheet is None:
+        wb.create_sheet(model_mode)
+    else:
+        wb.create_sheet(model_mode + skf_sheet)
+    sheet_name = wb.sheetnames[-1]  # Taking the ws name from the back ensures that if SNN1 is the new ws, it works
+
+    # Writing other subset split, instance per run, and bounds
+    ws = wb[sheet_name]
+    print_df_to_excel(df=new_df, ws=ws, start_row=1, start_col=1, index=True, header=True)
+
+    hparams = pd.DataFrame(dict([(k, Series(v)) for k, v in hparams.items()]))
+    start_row = 5
+    start_col = len(new_df.columns) + 4
+    print_df_to_excel(df=hparams, ws=ws, start_row=1, start_col=start_col, index=False, header=True)
+
+    headers = ['acc_macro', 'f1_micro', 'mcc']
+    values = [acc_macro, f1_micro, mcc]
+    print_array_to_excel(np.array(headers), (1 + start_row, start_col + 1), ws, axis=1)
+    print_array_to_excel(np.array(values), (2 + start_row, start_col + 1), ws, axis=1)
+    ws.cell(2 + start_row, start_col).value = 'Overall'
+    wb.save(skf_file)
+    wb.close()
+
+    return mcc

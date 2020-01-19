@@ -1,4 +1,4 @@
-from own_package.cross_validation import run_skf
+from own_package.cross_validation import run_skf, run_skf_classification
 from own_package.models.models import create_hparams
 from own_package.others import create_results_directory
 from own_package.spline_analysis import plot_arcsinh_predicted_splines, plot_cutoff
@@ -45,8 +45,29 @@ def run_skf_conv1(inputs, plot_spline, smote_excel):
     return write_dir
 
 
+def selector(case, **kwargs):
+    if case == 1:
+        # run skf conv1
+        inputs = [0, 0, 894, 0, 51, 'cutoff']
+        run_skf_conv1(inputs, plot_spline=True, smote_excel=None)
+    elif case == 2:
+        write_dir = create_results_directory('./results/skf',
+                                             folders=['plots', 'models', 'learning rate plots'],
+                                             excels=['skf_results'])
+        inputs = {'max_depth': 3,
+                  'num_est': 100}
+        hparams = create_hparams(max_depth=inputs['max_depth'], num_est=inputs['num_est'])
+        fl = load_data_to_fl('./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
+                             label_type='cutoff',
+                             normalise_labels=False,
+                             norm_mask=[0, 0, 0, 1, 1, 1])
+        fl_store = fl.create_kf(k_folds=10, shuffle=True)
+        run_skf_classification(model_mode='dtr', fl=fl, fl_store=fl_store, hparams=hparams,
+                               skf_file=write_dir + '/skf_results.xlsx',
+                               save_model=False, save_model_dir=write_dir + '/models/')
 
-inputs = [0,0,894,0,51, 'cutoff']
-write_dir = run_skf_conv1(inputs, plot_spline=True, smote_excel=None)
+
+
+selector(2)
 #plot_predicted_splines(write_dir='./results/skf10 archsinh', excel_dir='./results/skf10 archsinh/skf_results.xlsx', sheets=['conv1'], fn=6)
 #'./excel/smote_1.xlsx'

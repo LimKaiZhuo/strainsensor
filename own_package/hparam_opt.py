@@ -12,8 +12,8 @@ from sklearn.metrics import matthews_corrcoef, mean_squared_error
 from own_package.models.models import create_hparams
 from own_package.svm_classifier import run_classification, SVMmodel
 from own_package.svr import SVRmodel, run_svr
-from .cross_validation import run_skf
-from own_package.others import print_array_to_excel
+from .cross_validation import run_skf, run_skf_classification
+from own_package.others import print_array_to_excel, print_df_to_excel
 
 def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, save_model_dir,
                total_run, instance_per_run=3, save_model=False,
@@ -333,6 +333,48 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
                   '*********************************************************************************************'.format(
                 run_count, instance_per_run, mse_avg, end_time - start_time))
             return loss
+    elif model_mode == 'dtc':
+        start_time = time.time()
+        bounds = [[3, 30, ],
+                  [1, 500]]
+
+        depth = Integer(low=bounds[0][0], high=bounds[0][1], name='depth')
+        num_est = Integer(low=bounds[1][0], high=bounds[1][1], name='num_est')
+        dimensions = [depth, num_est]
+        default_parameters = [6, 300]
+
+        @use_named_args(dimensions=dimensions)
+        def fitness(depth, num_est):
+            global run_count, data_store, fl, fl_store
+            run_count += 1
+            hparams = create_hparams(max_depth=depth, num_est=num_est)
+
+            mse_avg = 0
+
+            for cnt in range(instance_per_run):
+                if plot_dir:
+                    plot_name = '{}/{}_run_{}_count_{}'.format(plot_dir, model_mode, run_count, cnt)
+                else:
+                    plot_name = None
+                mse = run_skf_classification(model_mode=model_mode, fl=fl, fl_store=fl_store, hparams=hparams,
+                              skf_file=hparam_file, skf_sheet='_' + str(run_count) + '_' + str(cnt),
+                              k_folds=10, k_shuffle=True,
+                              save_model_name='hparam_' + str(run_count) + '_' + str(cnt + 1), save_model=save_model,
+                              save_model_dir=save_model_dir,
+                              plot_name=plot_name)
+                mse_avg += mse
+
+            mse_avg = mse_avg / instance_per_run
+            loss = -mse_avg  # this is actually mcc value not mse for classifier. So, mcc should be maximised
+            end_time = time.time()
+            print('**************************************************************************************************\n'
+                  'Run Number {} \n'
+                  'Instance per run {} \n'
+                  'Current run MCC {} \n'
+                  'Time Taken: {}\n'
+                  '*********************************************************************************************'.format(
+                run_count, instance_per_run, mse_avg, end_time - start_time))
+            return loss
 
     search_result = gp_minimize(func=fitness,
                                 dimensions=dimensions,
@@ -344,20 +386,29 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
     wb = load_workbook(write_dir+'/hparam_results.xlsx')
     hparam_store = np.array(search_result.x_iters)
     results = np.array(search_result.func_vals)
-    index = np.arange(total_run) + 1
-    toprint = np.concatenate((index.reshape(-1,1),hparam_store, results.reshape(-1, 1)), axis=1)
+    if model_mode == 'dtc' or model_mode == 'svc':
+        results = results * -1
+    toprint = np.concatenate((hparam_store, results.reshape(-1, 1)), axis=1)
     if model_mode == 'conv1':
-        header = np.array(['index', 'pre', 'filters', 'epochs', 'mse'])
+        header = np.array(['pre', 'filters', 'epochs', 'mse'])
+        ascending = True
     elif model_mode == 'ann3':
-        header = np.array(['index', 'pre', 'epochs', 'mse'])
+        header = np.array(['pre', 'epochs', 'mse'])
+        ascending = True
     elif model_mode == 'dtr':
-        header = np.array(['index', 'max_depth', 'num_est', 'mse'])
+        header = np.array(['max_depth', 'num_est', 'mse'])
+        ascending = True
     elif model_mode == 'svr':
-        header = np.array(['index', 'epsilon', 'c', 'mse'])
-    toprint = np.concatenate((header.reshape(1,-1), toprint), axis=0)
+        header = np.array(['epsilon', 'c', 'mse'])
+        ascending = True
+    elif model_mode == 'dtc':
+        header = np.array(['max_depth', 'num_est', 'mcc'])
+        ascending=False
+    df = pd.DataFrame(data=toprint, columns=header)
+    df = df.sort_values(by=df.columns[-1], ascending=ascending)
     sheetname = wb.sheetnames[-1]
     ws = wb[sheetname]
-    print_array_to_excel(toprint, (1, 1), ws, axis=2)
+    print_df_to_excel(df=df, ws=ws)
     wb.save(write_dir+'/hparam_results.xlsx')
     wb.close()
 

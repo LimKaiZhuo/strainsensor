@@ -15,10 +15,11 @@ from .others import print_array_to_excel
 
 
 def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_mask=None):
-    df_features = pd.read_excel(data_loader_excel_file, sheet_name='features', index_col=0)
-    df_features_d = pd.read_excel(data_loader_excel_file, sheet_name='features_d', index_col=0)
-    df_labels = pd.read_excel(data_loader_excel_file, sheet_name=label_type, index_col=0)
-
+    xls = pd.ExcelFile(data_loader_excel_file)
+    df_features = pd.read_excel(xls, sheet_name='features', index_col=0)
+    df_features_d = pd.read_excel(xls, sheet_name='features_d', index_col=0)
+    df_labels = pd.read_excel(xls, sheet_name=label_type, index_col=0)
+    df_classification = pd.read_excel(xls, sheet_name='class', index_col=0)
 
     features_c = df_features.values
     features_c_names = df_features.columns.values
@@ -67,11 +68,10 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
         features_c = np.delete(features_c, remove_idx, axis=0)
     else:
         raise KeyError('label_type {} not recognised'.format(label_type))
-
-
+    labels_classification = df_classification.values.flatten()
 
     fl = Features_labels(features_c, labels_end, labels, label_type=label_type, features_c_names=features_c_names,
-                         labels_names=labels_names,
+                         labels_names=labels_names, labels_classification=labels_classification,
                          norm_mask=norm_mask,
                          normalise_labels=normalise_labels,
                          features_d_df=df_features_d, lookup_df=lookup_df_store)
@@ -81,7 +81,7 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
 
 class Features_labels:
     def __init__(self, features_c, labels_end, labels, label_type, features_c_names=None, labels_names=None, scaler=None,
-                 norm_mask=None, normalise_labels=False, labels_scaler=None, labels_end_scaler=None,
+                 norm_mask=None, normalise_labels=False, labels_scaler=None, labels_end_scaler=None, labels_classification=None,
                  idx=None, features_d_df=None,
                  lookup_df=None):
         """
@@ -153,6 +153,7 @@ class Features_labels:
 
         # Label name is size 2 larger than self.labels as it includes the col name for end point and the first pt.
         self.labels_names = labels_names
+        self.labels_classification = labels_classification
 
         # Normalizing labels for the 19 labels going into the neural network
         if normalise_labels:
@@ -214,12 +215,15 @@ class Features_labels:
             xtrain, xval = self.features_c[train_indices], self.features_c[val_indices]
             ytrain, yval = self.labels[train_indices], self.labels[val_indices]
             yendtrain, yendval = self.labels_end[train_indices], self.labels_end[val_indices]
+            yclasstrain, yclassval = self.labels_classification[train_indices], self.labels_classification[val_indices]
             fl_store.append(
                 (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
+                                 labels_classification=yclasstrain,
                                  norm_mask=self.norm_mask, features_c_names=self.features_c_names, label_type=self.label_type),
                  Features_labels(xval, yendval, yval, idx=xval_idx, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
+                                 labels_classification=yclassval,
                                  norm_mask=self.norm_mask, features_c_names=self.features_c_names, label_type=self.label_type))
             )
         return fl_store
