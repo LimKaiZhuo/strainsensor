@@ -10,7 +10,7 @@ import pathlib
 import warnings
 import copy
 import xlrd
-from own_package.smote.smote_code import produce_smote
+#from own_package.smote.smote_code import produce_smote
 from .others import print_array_to_excel
 
 

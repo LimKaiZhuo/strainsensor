@@ -1,4 +1,5 @@
-from own_package.analysis import l2_tracker, testset_prediction_results, testset_model_results_to_excel
+from own_package.analysis import l2_tracker, testset_prediction_results, testset_model_results_to_excel,\
+    testset_optimal_combination, save_testset_prediction, eval_combination_on_testset
 from own_package.others import create_results_directory
 
 
@@ -76,7 +77,16 @@ def selector(case, **kwargs):
                                        './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(13, 13),
                                        testset_excel_dir='./excel/Data_loader_spline_full_onehot_testset_cut_CM3.xlsx',
                                        fn=6, numel=3, chunks=10)
-
-
+    elif case == 5:
+        hparams = {'n_pop':1000, 'n_gen':3000, 'init':[0.5,0.5]}
+        write_dir = create_results_directory('./results/testset_optimal_combination')
+        testset_optimal_combination(results_dir=write_dir, y_dat='./results/testset_y.dat',
+                                    combination_dat='./results/testset_prediction.dat', hparams=hparams)
+    elif case == 6:
+        save_testset_prediction(combination_excel='./excel/testset_prediction.xlsx')
+    elif case == 7:
+        eval_combination_on_testset(av_excel='./results/testset_optimal_combination_3315/results 3315.xlsx',
+                                    y_dat='./results/testset_y.dat',
+                                    combination_dat='./results/testset_prediction.dat')
 # selector(1, round_number=11)
-selector(4)
+selector(7)

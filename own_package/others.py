@@ -48,13 +48,13 @@ def print_array_to_excel(array, first_cell, ws, axis=2):
     shape = array.shape
     if axis == 0:
         # Treat array as col vector and print along the rows
-        array.flatten()  # Flatten in case the input array is a nx1 ndarry which acts weird
+        array=array.flatten()  # Flatten in case the input array is a nx1 ndarry which acts weird
         for i in range(shape[0]):
             j = 0
             ws.cell(i + first_cell[0], j + first_cell[1]).value = array[i]
     elif axis == 1:
         # Treat array as row vector and print along the columns
-        array.flatten()  # Flatten in case the input array is a 1xn ndarry which acts weird
+        array=array.flatten()  # Flatten in case the input array is a 1xn ndarry which acts weird
         for j in range(shape[0]):
             i = 0
             ws.cell(i + first_cell[0], j + first_cell[1]).value = array[j]
