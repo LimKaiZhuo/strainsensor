@@ -6,7 +6,7 @@ from own_package.active_learning.acquisition import features_to_features_input, 
 from own_package.svm_classifier import SVMmodel
 from own_package.hparam_opt import grid_hparam_opt
 from own_package.spline_analysis import plot_arcsinh_predicted_splines
-from own_package.model_combination import combine_excel_results, cutoff_combine_excel_results, mse_tracker, final_prediction_results
+from own_package.model_combination import combine_excel_results, cutoff_combine_excel_results, mse_tracker, final_prediction_results,cutoff_combine_excel_results_with_excel
 from own_package.others import create_results_directory
 
 
@@ -61,7 +61,7 @@ def test(selector, number=None):
                                        transformation='arcsinh',
                                        sheets=['ann3'], fn=6, numel=99)
     elif selector == 5:
-        combine_excel_results(results_excel_dir='./results/combine Round 6/combination.xlsx',
+        combine_excel_results(results_excel_dir='./results/Optimal Combinations/testset_combi/combinations.xlsx',
                               end_excel_dir='./results/combine Round 6/end 6.xlsx',
                               plot_dir='./results/combine Round 6/plots',
                               sheets=['ann3_115_0', 'ann3_190_0 sqrt', 'conv1_40_0', 'conv1_158_0 sqrt'],
@@ -83,6 +83,12 @@ def test(selector, number=None):
                                      plot_dir='./results/combination {}/plots'.format(number),
                                      plot_mode=False,
                                      fn=6, numel=3)
+    elif selector == 6.2:
+        cutoff_combine_excel_results_with_excel(
+                                     results_excel_dir='./results/combination_13s_R13_predictions/testset_prediction.xlsx',
+                                     plot_dir='./results/combination_13s_R13_predictions/plots',
+                                     plot_mode=False,
+                                     fn=-1, numel=3)
 
     elif selector == 7:
         model_store = load_model_ensemble('./results/skf13/models')
@@ -194,7 +200,7 @@ def test(selector, number=None):
 #test(6, number=11)
 #test(6, number=12)
 #test(6, number=13)
-test(6, number='13s2')
+test(6.2, number='13s2')
 '''
 test(6, number=2)
 test(6, number=3)

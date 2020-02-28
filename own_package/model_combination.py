@@ -176,6 +176,72 @@ def cutoff_combine_excel_results(dir_store, results_excel_dir,  plot_dir, sheets
     wb.save(results_excel_dir)
 
 
+def cutoff_combine_excel_results_with_excel(results_excel_dir,  plot_dir, fn, numel, plot_mode):
+    cutoff = [10, 100]
+    xls = pd.ExcelFile(results_excel_dir)
+
+    p_y_store = []
+    sheets = xls.sheet_names
+    for sheet in sheets:
+        if sheet =='Sheet':
+            pass
+        else:
+            df = pd.read_excel(xls, sheet_name=sheet, index_col=0)
+            df = df.sort_index()
+
+            p_y = df.iloc[:, fn + 1 + numel:fn + 1 + 2 * numel].values.tolist()
+            p_y_store.append(p_y)
+
+    y_store = df.iloc[:, fn + 1:fn + 1 + numel].values
+    p_y_store_mean = np.mean(np.array(p_y_store), axis=0)
+
+    combine_mse = np.mean((y_store-p_y_store_mean)**2)
+    p_y_store.append(p_y_store_mean.tolist())
+
+    rc = np.mean(np.abs(y_store-p_y_store_mean)/y_store)
+
+    se = (y_store-p_y_store_mean)**2
+    cumulative_mse = []
+    for idx in range(np.shape(se)[0]):
+        cumulative_mse.append(np.mean(se[0:idx+1,:]))
+
+    sheets.append('Combined')
+
+    if plot_mode:
+        for idx, [x, p_x_store] in enumerate(zip(y_store.tolist(), np.swapaxes(np.array(p_y_store),0,1).tolist())):
+            plt.plot([0, x[0], x[1], x[2]],
+                     [0, 0, 10 * (x[1] - x[0]), cutoff[0] * (x[1] - x[0]) + cutoff[1] * (x[2] - x[1])], c='r',
+                     label='Actual Spline Fit')
+            for idx1, p_x in enumerate(p_x_store):
+                if idx1==3:
+                    plt.plot([0, p_x[0], p_x[1], p_x[2]],
+                             [0, 0, 10 * (p_x[1] - p_x[0]), cutoff[0] * (p_x[1] - p_x[0]) + cutoff[1] * (p_x[2] - p_x[1])],
+                             label=sheets[idx1])
+            plt.legend(loc='upper left')
+            plt.title('Expt. ' + str(idx + 1))
+            plt.savefig('{}/Expt_{}.png'.format(plot_dir, idx+1),
+                        bbox_inches='tight')
+            plt.close()
+
+    df.iloc[:, fn + 1 + numel:fn + 1 + 2 * numel] = np.array(p_y_store[-1])
+    df = df.iloc[:, :fn + 1 + 2 * numel]
+    df['Cumulative MSE'] = cumulative_mse
+
+    wb = openpyxl.load_workbook(results_excel_dir)
+    wb.create_sheet('Results')
+    names = wb.sheetnames
+    ws = wb[names[-1]]
+    print_df_to_excel(df=df, ws=ws, index=True, header=True)
+
+    col = fn + 1 + 1 + 2 * numel + 3
+    ws.cell(1, col).value = 'Combined'
+    ws.cell(2, col+0).value = 'mse'
+    ws.cell(2, col+1).value = combine_mse
+    ws.cell(3, col+0).value = 'RC'
+    ws.cell(3,col+1).value = rc
+    wb.save(results_excel_dir)
+
+
 def mse_tracker(excel_store, write_excel, rounds, headers, fn, numel):
     while os.path.isfile(write_excel):
         expand = 1

@@ -1,5 +1,5 @@
-from own_package.analysis import l2_tracker, testset_prediction_results, testset_model_results_to_excel,\
-    testset_optimal_combination, save_testset_prediction, eval_combination_on_testset
+from own_package.analysis import l2_tracker, testset_prediction_results, testset_model_results_to_excel, \
+    testset_optimal_combination, save_testset_prediction, eval_combination_on_testset, save_valset_prediction
 from own_package.others import create_results_directory
 
 
@@ -60,33 +60,73 @@ def selector(case, **kwargs):
         write_dir = create_results_directory('./results/testset_all_predictions', excels=['testset_prediction'])
         testset_model_results_to_excel(write_excel='{}/testset_prediction.xlsx'.format(write_dir),
                                        model_dir_store=
-                                       [
-                                           './results/{}/models'.format('hparams_opt round 13 ANN3 - 2'),
-                                           './results/{}/models'.format('hparams_opt round 13 DTR'),
-
-                                           './results/{}/models'.format('hparams_opt round 13 SVR'),
-                                           './results/{}/models'.format('hparams_opt round 13 SVR - 2'),
-                                           './results/{}/models'.format('hparams_opt round 13 ANN3 - 4'),
-                                           './results/{}/models'.format('hparams_opt round 13s ANN3'),
-                                           './results/{}/models'.format('hparams_opt round 13s SVR'),
-                                           './results/{}/models'.format('hparams_opt round 13s2 ANN3'),
-                                           './results/{}/models'.format('hparams_opt round 13s2 SVR'),
-                                           './results/{}/models'.format('hparams_opt round 13s2 DTR'),
-                                           './results/{}/models'.format('hparams_opt round 13s3 DTR')],
+                                       ['./results/{}/models'.format('hparams_opt round 13 ANN3 - 2'),
+                                        './results/{}/models'.format('hparams_opt round 13 DTR'),
+                                        './results/{}/models'.format('hparams_opt round 13 SVR'),
+                                        './results/{}/models'.format('hparams_opt round 13 SVR - 2'),
+                                        './results/{}/models'.format('hparams_opt round 13 ANN3 - 4'),
+                                        './results/{}/models'.format('hparams_opt round 13s ANN3'),
+                                        './results/{}/models'.format('hparams_opt round 13s SVR'),
+                                        './results/{}/models'.format('hparams_opt round 13s2 ANN3'),
+                                        './results/{}/models'.format('hparams_opt round 13s2 SVR'),
+                                        './results/{}/models'.format('hparams_opt round 13s2 DTR'),
+                                        './results/{}/models'.format('hparams_opt round 13s3 DTR')],
                                        loader_excel=
                                        './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(13, 13),
                                        testset_excel_dir='./excel/Data_loader_spline_full_onehot_testset_cut_CM3.xlsx',
                                        fn=6, numel=3, chunks=10)
+    elif case == 4.1:
+        write_dir = create_results_directory('./results/valtestset_all_predictions', excels=['testset_prediction'])
+        testset_model_results_to_excel(write_excel='{}/testset_prediction.xlsx'.format(write_dir),
+                                       model_dir_store=
+                                       ['./results/10CV/combination 13s/models'],
+                                       loader_excel=
+                                       './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(13, 13),
+                                       testset_excel_dir='./excel/Data_loader_spline_full_onehot_testset_cut_CM3.xlsx',
+                                       fn=6, numel=3, chunks=10)
+    elif case == 4.2:
+        write_dir = create_results_directory('./results/combination_13_R13_predictions', excels=['testset_prediction'])
+        testset_model_results_to_excel(write_excel='{}/testset_prediction.xlsx'.format(write_dir),
+                                       model_dir_store=
+                                       ['./results/10CV/combination 13/models'],
+                                       loader_excel=
+                                       './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(13, 13),
+                                       testset_excel_dir='./excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(13, 13),
+                                       fn=6, numel=3, chunks=10)
     elif case == 5:
-        hparams = {'n_pop':1000, 'n_gen':3000, 'init':[0.5,0.5]}
+        hparams = {'n_pop': 1000, 'n_gen': 3000, 'init': [0.5, 0.5]}
         write_dir = create_results_directory('./results/testset_optimal_combination')
         testset_optimal_combination(results_dir=write_dir, y_dat='./results/testset_y.dat',
                                     combination_dat='./results/testset_prediction.dat', hparams=hparams)
+    elif case == 5.1:
+        hparams = {'n_pop': 1000, 'n_gen': 3000, 'init': [0.5, 0.5]}
+        write_dir = create_results_directory('./results/valset_optimal_combination')
+        testset_optimal_combination(results_dir=write_dir, y_dat='./results/valset_y.dat',
+                                    combination_dat='./results/valset_prediction.dat', hparams=hparams)
     elif case == 6:
-        save_testset_prediction(combination_excel='./excel/testset_prediction.xlsx')
+        save_testset_prediction(combination_excel='./results/valtestset_all_predictions/testset_prediction.xlsx')
     elif case == 7:
         eval_combination_on_testset(av_excel='./results/testset_optimal_combination_3315/results 3315.xlsx',
                                     y_dat='./results/testset_y.dat',
                                     combination_dat='./results/testset_prediction.dat')
+    elif case == 7.1:
+        eval_combination_on_testset(av_excel=None,
+                                    y_dat='./results/valtestset_y.dat',
+                                    combination_dat='./results/valtestset_prediction.dat')
+    elif case == 8:
+        save_valset_prediction(skf_excel_store=[
+            './results/{}/skf_results.xlsx'.format('hparams_opt round 13 ANN3 - 2'),
+            './results/{}/skf_results.xlsx'.format('hparams_opt round 13 DTR'),
+            './results/{}/skf_results.xlsx'.format('hparams_opt round 13 SVR'),
+            './results/{}/skf_results.xlsx'.format('hparams_opt round 13 SVR - 2'),
+            './results/{}/skf_results.xlsx'.format('hparams_opt round 13 ANN3 - 4'),
+            './results/{}/skf_results.xlsx'.format('hparams_opt round 13s ANN3'),
+            './results/{}/skf_results.xlsx'.format('hparams_opt round 13s SVR'),
+            './results/{}/skf_results.xlsx'.format('hparams_opt round 13s2 ANN3'),
+            './results/{}/skf_results.xlsx'.format('hparams_opt round 13s2 SVR'),
+            './results/{}/skf_results.xlsx'.format('hparams_opt round 13s2 DTR'),
+            './results/{}/skf_results.xlsx'.format('hparams_opt round 13s3 DTR')])
+
+
 # selector(1, round_number=11)
-selector(7)
+selector(4.2)

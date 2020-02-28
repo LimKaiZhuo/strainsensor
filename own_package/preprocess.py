@@ -309,7 +309,7 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
             # Store the processed labels. Labels for one example is 1d ndarray of
             # [End_point of strain curve, r1, r2, r3, ... , r_end]
             y_discrete = spline.__call__(eval_x)
-            gradient_store = (y_discrete[1:] - y_discrete[:-1])/(eval_x[1]-eval_x[0])
+            gradient_store = (y_discrete[1:] - y_discrete[:-1])/(eval_x[1]-eval_x[0]) * 100
             # If indexError occurs ==> np.where found nothing ==> there is no points with the required gradient
             # So just put the end point as the answer.
             try:
@@ -341,7 +341,7 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
         # Second cutoff method
         r = np.array(r)
         strain = np.array(strain)
-        gf_store = (r[1:] - r[:-1])/(strain[1:] - strain[:-1])
+        gf_store = (r[1:] - r[:-1])/(strain[1:] - strain[:-1]) * 100
         if gf_store[-1]<-1:
             cutoff_one = -1
             cutoff_two = -1

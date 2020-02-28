@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import openpyxl
 from own_package.others import print_df_to_excel, create_excel_file
-from own_package.smote.smote_code import produce_smote
+from own_package.smote.smote_code import produce_smote, create_invariant_testset
 from own_package.features_labels_setup import load_data_to_fl
 
 
@@ -22,6 +22,37 @@ def selector(case, **kwargs):
                           ws=ws)
         wb.save(excel_dir)
         pass
+    elif case==2:
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=1)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=1)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=1)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=5)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=5)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=5)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=10)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=10)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=10)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=30)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=30)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=30)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=50)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=50)
+        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+                                 numel=50)
 
 
-selector(1)
+selector(2)

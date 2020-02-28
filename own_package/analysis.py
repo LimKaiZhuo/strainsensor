@@ -186,9 +186,13 @@ def eval_combination_on_testset(av_excel, y_dat, combination_dat):
     with open(combination_dat, "rb") as f:
         p_y_store = pickle.load(f)
         p_y_store = np.array([x[1] for x in p_y_store])
-    av = pd.read_excel(av_excel, sheet_name='av', index_col=None)
+    if av_excel:
+        av = pd.read_excel(av_excel, sheet_name='av', index_col=None)
+        selected_mask = [idx for idx, value in enumerate(av.iloc[:, -1].values) if value == 1]
+    else:
+        selected_mask = [1] * len(p_y_store)
 
-    selected_mask = [idx for idx, value in enumerate(av.iloc[:,-1].values) if value == 1]
+
     p_y_selected_mean = np.mean(p_y_store[selected_mask, :, :], axis=0)
     re = np.mean(np.abs(y - p_y_selected_mean) / y)
 
@@ -202,7 +206,10 @@ def eval_combination_on_testset(av_excel, y_dat, combination_dat):
     wb.create_sheet('Models')
     ws = wb[wb.sheetnames[-1]]
     ws.cell(1,1).value = 'Names'
-    print_array_to_excel(array=av.iloc[:,0].values[selected_mask], first_cell=(2,1), ws=ws, axis=0)
+    try:
+        print_array_to_excel(array=av.iloc[:,0].values[selected_mask], first_cell=(2,1), ws=ws, axis=0)
+    except:
+        pass
     ws.cell(1,2).value = 'RE'
     ws.cell(1,3).value = re
     excel_dir = create_excel_file('./results/eval_combi.xlsx')
@@ -215,12 +222,12 @@ def save_testset_prediction(combination_excel):
     model_names = pd.read_excel(xls, 'Sheet', index_col=0).iloc[:,0].values
     df_store = [pd.read_excel(xls, sheet, index_col=0) for sheet in sheetnames]
     p_y_store = [[model_names[idx], x.iloc[:, 3:6].values] for idx, x in enumerate(df_store) if (x.shape[1]==17 and x.iloc[0,16]<0.45)]
-    with open('./results/testset_prediction.dat', "wb") as f:
+    with open('./results/valtestset_prediction.dat', "wb") as f:
         pickle.dump(p_y_store, f)
 
     df = pd.read_excel(xls, '1', index_col=0)
     y = df.iloc[:, :3].values
-    with open('./results/testset_y.dat', "wb") as f:
+    with open('./results/valtestset_y.dat', "wb") as f:
         pickle.dump(y, f)
 
 
@@ -263,7 +270,7 @@ def testset_optimal_combination(results_dir, y_dat, combination_dat, hparams):
                                        ngen=hparams['n_gen'], halloffame=hof, stats=stats,
                                        verbose=True)
 
-# Plotting
+    # Plotting
     gen = logbook.select("gen")
     fit_min = [x.item() for x in logbook.select("min")]
     fit_avg = [x.item() for x in logbook.select("avg")]
@@ -306,3 +313,21 @@ def testset_optimal_combination(results_dir, y_dat, combination_dat, hparams):
     print_array_to_excel(list(hof[-1]), (2, 2), ws=ws, axis=0)
 
     wb.save(excel_name)
+
+
+def save_valset_prediction(skf_excel_store):
+    p_y_store = []
+    for skf_excel in skf_excel_store:
+        xls = pd.ExcelFile(skf_excel)
+        sheetnames = xls.sheet_names[1:]
+        df_store = [pd.read_excel(xls, sheet, index_col=0).sort_index() for sheet in sheetnames]
+        p_y_store.extend([['{}_{}'.format(skf_excel, x[1]), x[0].iloc[:, 10:13].values] for x in zip(df_store, sheetnames)])
+
+    with open('./results/valset_prediction.dat', "wb") as f:
+        pickle.dump(p_y_store, f)
+
+    df = pd.read_excel(xls, sheetnames[0], index_col=0).sort_index()
+    y = df.iloc[:, 7:10].values
+    with open('./results/valset_y.dat', "wb") as f:
+        pickle.dump(y, f)
+

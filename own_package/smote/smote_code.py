@@ -1,51 +1,84 @@
 import numpy as np
-import numpy.random as rng
 import pandas as pd
-from openpyxl import load_workbook
+import itertools, random
+import openpyxl
+from own_package.others import create_excel_file, print_df_to_excel
+from imblearn.over_sampling import SMOTE
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import StratifiedKFold, KFold, LeaveOneOut
-import pickle
-import os
-import pathlib
-import warnings
-import copy
-import xlrd
-from own_package.smote.smote_code import produce_smote, produce_invariant
-from .others import print_array_to_excel
+
+def produce_invariant(features, labels, numel):
+    feature_store = []
+    label_store = []
+    for feature, label in zip(features.tolist(), labels.tolist()):
+        for _ in range(numel):
+            new_feature = feature[:]
+            rand = [random.uniform(-1,1) for _ in range(3)]
+            for idx, (x, r, c) in enumerate(zip(feature, rand, [0.02, 0.02, 5])):
+                new_x = x + r*c
+                new_feature[idx] = max(new_x, 0)
+                pass
+            feature_store.append(new_feature)
+            label_store.append(label)
+    return np.array(feature_store), np.array(label_store)
 
 
-class Shortcut_fl:
-    def __init__(self, features_c, labels, scaler, feature_names, label_names, norm_mask):
-        self.features_c_names = feature_names
-        self.features_c = features_c
-        self.features_c_dim = features_c.shape[1]
-        self.count = features_c.shape[0]
-        self.norm_mask = norm_mask
-        mask = np.array([1] * self.features_c_dim, dtype=np.bool)
-        mask[norm_mask] = 0
-        if features_c[:, mask].shape[1] == 0:
-            self.scaler = 0
-            self.features_c_norm = features_c
-        else:
-            if scaler is None:
-                # If scaler is None, means normalize the data with all input data
-                self.scaler = MinMaxScaler()
-                self.scaler.fit(features_c[:, mask])  # Setting up scaler
-            else:
-                # If scaler is given, means normalize the data with the given scaler
-                self.scaler = scaler
-            features_c_norm = self.scaler.transform(features_c[:, mask])  # Normalizing features_c
-            self.features_c_norm = np.copy(features_c)
-            self.features_c_norm[:, mask] = features_c_norm
-        self.labels = labels
-        self.labels_names = label_names
+def create_invariant_testset(testset_excel_dir, numel):
+    df = pd.read_excel(testset_excel_dir, index_col=0)
 
-def load_testset_to_fl(testset_excel_file, norm_mask, scaler):
-    df = pd.read_excel(testset_excel_file, index_col=0)
-    features = df.iloc[:,:-3].values
-    labels = df.iloc[:,-3:].values
-    return Shortcut_fl(features_c=features, labels=labels, scaler=scaler,
-                       feature_names=df.columns[:-3], label_names=df.columns[-3:], norm_mask=norm_mask)
+    features, labels = produce_invariant(features=df.values[:,:-3], labels=df.values[:,-3:], numel=numel)
+    new_data = np.concatenate((features, labels), axis=1)
+    columns = df.columns
+    new_df = pd.DataFrame(data=new_data, columns=columns)
+    df = df.append(new_df)
+
+    write_excel = '{} Invariant {}.xlsx'.format(testset_excel_dir.partition('.xlsx')[0], numel)
+    write_excel = create_excel_file(write_excel)
+    wb = openpyxl.load_workbook(write_excel)
+    ws = wb[wb.sheetnames[-1]]
+    print_df_to_excel(df=df, ws=ws)
+    wb.save(write_excel)
+
+def produce_smote(features, labels, numel):
+    '''
+    Features should contain only composition and thickness. SMOTE for each dimension separately
+    '''
+    feaColums = features
+    data_store = []
+    for colidx in [-3,-2,-1]:
+        dim_idx = np.where(features[:,colidx]==1)[0]
+        data_store.append(np.concatenate((features[dim_idx,:-3], labels[dim_idx,:]),axis=1))
+
+    data_smote_all = []
+    for dim, data2Del in enumerate(data_store):
+        ind_list = [i for i in range(data2Del.shape[0])]
+        ind_set = list(itertools.combinations(ind_list,3))
+        num_original = len(ind_list)
+        iter_required = int(numel / (num_original - 3))
+        num_comb = len(ind_set)
+        jump = int(num_comb / iter_required)
+        model_smote = SMOTE(k_neighbors= 2 ,random_state=0)
+
+        data_smote_all_single_dim = []
+
+        for i in range(0,num_comb, jump):
+            item = ind_set[i]
+            ind_ = list(item)
+            y_smote = np.zeros(data2Del.shape[0])
+            y_smote[ind_] = 1
+            data_smote_resampled , y_smote_resampled = model_smote.fit_resample(np.array(data2Del) , y_smote)
+            ind = np.where(y_smote_resampled == 1)
+            data_ = data_smote_resampled[ind].tolist()
+            data_smote_all_single_dim.extend(data_)
+
+        dim_features = [0,0,0]
+        dim_features[dim] = 1
+        data_smote_all_single_dim = [data[:-3] + dim_features + data[-3:] for data in data_smote_all_single_dim]
+        data_smote_all.extend(data_smote_all_single_dim)
+
+    data_smote_all = np.unique(np.array(data_smote_all), axis=0)
+    # Split features and labels
+    return data_smote_all[:,:features.shape[1]], data_smote_all[:,features.shape[1]:]
 
 
 def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_mask=None):
@@ -53,12 +86,7 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
     df_features = pd.read_excel(xls, sheet_name='features', index_col=0)
     df_features_d = pd.read_excel(xls, sheet_name='features_d', index_col=0)
     df_labels = pd.read_excel(xls, sheet_name=label_type, index_col=0)
-    try:
-        df_classification = pd.read_excel(xls, sheet_name='class', index_col=0)
-        labels_classification = df_classification.values.flatten()
-    except:
-        df_classification = df_labels
-        labels_classification = df_labels.values
+    df_classification = pd.read_excel(xls, sheet_name='class', index_col=0)
 
     features_c = df_features.values
     features_c_names = df_features.columns.values
@@ -107,7 +135,7 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
         features_c = np.delete(features_c, remove_idx, axis=0)
     else:
         raise KeyError('label_type {} not recognised'.format(label_type))
-
+    labels_classification = df_classification.values.flatten()
 
     fl = Features_labels(features_c, labels_end, labels, label_type=label_type, features_c_names=features_c_names,
                          labels_names=labels_names, labels_classification=labels_classification,
@@ -411,53 +439,3 @@ class Features_labels:
             print_array_to_excel(ss_store[cnt], (2, 1), wb[sheet_name_store[cnt]], axis=axis_store[cnt])
         wb.save(loader_excel_file)
         wb.close()
-
-
-
-
-class Features_labels_grid:
-    def __init__(self, features, labels, idx=None):
-        """
-        Creates fl class with a lot useful attributes for grid data classification
-        :param features:
-        :param labels: Labels as np array, no. of examples x dim
-        :param scaler: Scaler to transform features c. If given, use given MinMax scaler from sklearn,
-        else create scaler based on given features c.
-        """
-        # Setting up features
-        self.count = features.shape[0]
-        self.features = np.copy(features)
-        self.features_dim = features.shape[1]
-
-        # idx is for when doing k-fold cross validation, to keep track of which examples are in the val. set
-        if isinstance(idx, np.ndarray):
-            self.idx = idx
-        else:
-            self.idx = np.arange(self.count)
-
-        # Setting up labels
-        self.labels = np.array(labels)
-        self.labels_dim = 1
-
-    def create_kf(self, k_folds, shuffle=True):
-        '''
-        Almost the same as skf except can work for regression labels and folds are not stratified.
-        Create list of tuples containing (fl_train,fl_val) fl objects for k fold cross validation
-        :param k_folds: Number of folds
-        :return: List of tuples
-        '''
-        fl_store = []
-        # Instantiate the cross validator
-        skf = KFold(n_splits=k_folds, shuffle=shuffle)
-        # Loop through the indices the split() method returns
-        for _, (train_indices, val_indices) in enumerate(skf.split(self.features, self.labels)):
-            # Generate batches from indices
-            xval_idx = self.idx[val_indices]
-            xtrain, xval = self.features[train_indices], self.features[val_indices]
-            ytrain, yval = self.labels[train_indices], self.labels[val_indices]
-            fl_store.append(
-                (Features_labels_grid(xtrain, ytrain),
-                 Features_labels_grid(xval, yval, idx=xval_idx)
-                 )
-            )
-        return fl_store

@@ -144,10 +144,14 @@ class DTRmodel:
         self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
         self.labels_scaler = fl.labels_scaler
         self.model = MultiOutputRegressor(AdaBoostRegressor(DecisionTreeRegressor(max_depth=max_depth),n_estimators=num_est))
+        self.normalise_labels = fl.normalise_labels
 
     def train_model(self, fl, save_mode=False, plot_name=None):
         training_features = fl.features_c_norm
-        training_labels = fl.labels_norm
+        if self.normalise_labels:
+            training_labels = fl.labels_norm
+        else:
+            training_labels = fl.labels
 
         self.model.fit(training_features, training_labels)
 
@@ -159,8 +163,13 @@ class DTRmodel:
             y_pred = self.model.predict(features)[:, None]
         else:
             y_pred = self.model.predict(features)
-        mse_norm = mean_squared_error(eval_fl.labels_norm, y_pred)
-        mse = mean_squared_error(eval_fl.labels, self.labels_scaler.inverse_transform(y_pred))
+        if self.normalise_labels:
+            mse_norm = mean_squared_error(eval_fl.labels_norm, y_pred)
+            mse = mean_squared_error(eval_fl.labels, self.labels_scaler.inverse_transform(y_pred))
+        else:
+            mse_norm = -1
+            mse = mean_squared_error(eval_fl.labels, y_pred)
+
 
         return y_pred, mse, mse_norm
 
@@ -171,7 +180,10 @@ class Predict_SVR_DTR:
         self.labels_scaler = labels_scaler
 
     def predict(self, features):
-        y_pred = self.labels_scaler.inverse_transform(self.model.predict(features))
+        try:
+            y_pred = self.labels_scaler.inverse_transform(self.model.predict(features))
+        except:
+            y_pred = self.model.predict(features)
         return y_pred
 
 
