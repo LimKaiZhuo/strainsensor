@@ -736,8 +736,8 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
 
         # bounds = [[10, 300, ],
         #          [50, 800]]
-        bounds = [[100, 1000, ],
-                  [100, 4000]]
+        bounds = [[30, 3000, ],
+                  [100, 8000]]
 
         pre = Integer(low=bounds[0][0], high=bounds[0][1], name='pre')
         epochs = Integer(low=bounds[1][0], high=bounds[1][1], name='epochs')
@@ -779,8 +779,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
             with open('{}_{}.pkl'.format(data_store_dir,data_store_name), "wb") as file:
                 pickle.dump(data_store, file)
             data_store_count += 1
-            #loss = (val_score + train_score) / 2
-            loss = val_score
+            loss = (val_score*2 + train_score) /3
             end_time = time.time()
             print('**************************************************************************************************\n'
                   'Run Number {} \n'
@@ -916,7 +915,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
     wb.close()
 
 
-def read_hparam_data(data_store, write_dir, ett_names, print_s_df):
+def read_hparam_data(data_store, write_dir, ett_names, print_s_df, trainset_ett_idx=None):
     numel_ett = len(ett_names)
     if print_s_df:
         st_df_excel = create_excel_file(write_dir + '/st_df.xlsx')
@@ -945,10 +944,17 @@ def read_hparam_data(data_store, write_dir, ett_names, print_s_df):
     overall_summary_excel = create_excel_file(write_dir + '/overall_summary.xlsx')
     overall_summary_wb = openpyxl.load_workbook(overall_summary_excel)
     ws = overall_summary_wb['Sheet']
-    print_array_to_excel(
-        array=['Trial', 'name', 'Train MSE', 'Train MRE', 'Val MSE', 'Val MRE', 'Test MSE', 'Test MRE']\
-              + [x+'_MSE' for x in ett_names] + [x+'_MRE' for x in ett_names] + ['hparam1', 'hparam2'],
-        first_cell=(1, 1), ws=ws, axis=1)
+    if trainset_ett_idx:
+        print_array_to_excel(
+            array=['Trial', 'name', 'Train MSE', 'Train MRE', 'Val MSE', 'Val MRE', 'Test MSE', 'Test MRE',
+                   'un125Train MSE', 'un125Train MRE']\
+                  + [x+'_MSE' for x in ett_names] + [x+'_MRE' for x in ett_names] + ['hparam1', 'hparam2'],
+            first_cell=(1, 1), ws=ws, axis=1)
+    else:
+        print_array_to_excel(
+            array=['Trial', 'name', 'Train MSE', 'Train MRE', 'Val MSE', 'Val MRE', 'Test MSE', 'Test MRE'] \
+                  + [x + '_MSE' for x in ett_names] + [x + '_MRE' for x in ett_names] + ['hparam1', 'hparam2'],
+            first_cell=(1, 1), ws=ws, axis=1)
     overall_row = 2
 
     for trial, data in enumerate(data_store):
@@ -1020,11 +1026,25 @@ def read_hparam_data(data_store, write_dir, ett_names, print_s_df):
         ws.cell(overall_row, 6).value = data[1][4]
         ws.cell(overall_row, 7).value = data[1][5]
         ws.cell(overall_row, 8).value = data[1][6]
-        print_array_to_excel(array=data[8][0], first_cell=(overall_row, 9), ws=ws, axis=1)
-        print_array_to_excel(array=data[8][1], first_cell=(overall_row, 9+numel_ett), ws=ws, axis=1)
+        col = 9
+        if trainset_ett_idx:
+            untrainset_df = data[10][trainset_ett_idx].copy(deep=True)
+            ov_df = data[5]
+            untrainset_df.iloc[:ov_df.shape[0],-3:] = ov_df.iloc[:,-3:]
+            y = untrainset_df.iloc[:,:3].values
+            p_y = untrainset_df.iloc[:, -3:].values
+            mse = np.mean((y-p_y)**2)
+            mre = np.mean(np.abs(y - p_y).T / y[:, -1])
+            ws.cell(overall_row, col).value = mse
+            ws.cell(overall_row, col+1).value = mre
+            col += 2
+
+
+        print_array_to_excel(array=data[8][0], first_cell=(overall_row, col), ws=ws, axis=1)
+        print_array_to_excel(array=data[8][1], first_cell=(overall_row, col+numel_ett), ws=ws, axis=1)
         try:
-            ws.cell(overall_row, 9 + 2*numel_ett).value = data[-1][0]
-            ws.cell(overall_row, 10 + 2*numel_ett).value = data[-1][1]
+            ws.cell(overall_row, col + 2*numel_ett).value = data[-1][0]
+            ws.cell(overall_row, col+1 + 2*numel_ett).value = data[-1][1]
         except IndexError:
             pass
         overall_row += 1
