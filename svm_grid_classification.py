@@ -8,7 +8,7 @@ from own_package.models.models import create_hparams
 
 def selector(case):
     if case == 1:
-        write_dir = create_results_directory(results_directory='./results/svm_results')
+        write_dir = create_results_directory(results_directory='./results/svm_results with proba')
         run_classification(read_dir='./results/grid full', write_dir=write_dir, gamma=130)
     elif case == 2:
         fl = load_data_to_fl('./excel/Data_loader_spline_full_onehot_R4.xlsx', normalise_labels=True,

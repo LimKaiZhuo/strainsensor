@@ -1,6 +1,8 @@
 from own_package.analysis import l2_tracker, testset_prediction_results, testset_model_results_to_excel, \
-    testset_optimal_combination, save_testset_prediction, eval_combination_on_testset, save_valset_prediction
+    testset_optimal_combination, save_testset_prediction, eval_combination_on_testset, save_valset_prediction,\
+    features_correlation_analysis, training_curve_comparision
 from own_package.others import create_results_directory
+from own_package.models.models import create_hparams
 
 
 def selector(case, **kwargs):
@@ -9,7 +11,7 @@ def selector(case, **kwargs):
         write_dir = create_results_directory('./results/l2_tracker', excels=['l2_results'])
         l2_tracker(write_excel='{}/l2_results.xlsx'.format(write_dir),
                    final_excel_loader='./excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(round_number),
-                   last_idx_store=[11, 16, 21, 29, 37, 45, 69, 77, 85, 93, 101, 109])
+                   last_idx_store=[11, 16, 21, 29, 37, 45, 69, 77, 85, 93, 101, 109, 117, 125])
     elif case == 2:
         write_dir = create_results_directory('./results/testset_prediction', excels=['testset_prediction'])
         testset_prediction_results(write_excel='{}/testset_prediction.xlsx'.format(write_dir),
@@ -126,7 +128,28 @@ def selector(case, **kwargs):
             './results/{}/skf_results.xlsx'.format('hparams_opt round 13s2 SVR'),
             './results/{}/skf_results.xlsx'.format('hparams_opt round 13s2 DTR'),
             './results/{}/skf_results.xlsx'.format('hparams_opt round 13s3 DTR')])
+    elif case == 9:
+        # Ranking feature importance
+        features_correlation_analysis('./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx')
+    elif case == 10:
+        # learning curve plot for 125 data points for comparision between mse and he
+        pre = 100
+        epochs = 11
+        loss = 'mse'
+        write_dir = './results/training_curve_comparision'
+        write_dir = create_results_directory(write_dir)
+        hparams = create_hparams(shared_layers=[30, 30], ts_layers=[5, 5], cs_layers=[5, 5],
+                                 shared=0, end=0, pre=pre, filters=0, epochs=epochs,
+                                 reg_l1=0.0005, reg_l2=0, loss=loss,
+                                 learning_rate=0.0001,
+                                 max_depth=pre, num_est=epochs,
+                                 epsilon=0.0001, c=0.001,
+                                 activation='relu', batch_size=16, verbose=0)
+        training_curve_comparision(train_excel='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
+                                   val_excel='./excel/ett_30testset_cut.xlsx',
+                                   write_dir=write_dir,
+                                   hparams=hparams)
 
 
-# selector(1, round_number=11)
-selector(4.2)
+selector(10, round_number=13)
+#selector(4.2)

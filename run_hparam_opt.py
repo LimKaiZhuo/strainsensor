@@ -205,7 +205,7 @@ def selector(case, **kwargs):
                                       test_fl=test_fl,
                                       ett_fl_store=ett_fl_store,
                                       norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
-                                      total_run=60, instance_per_run=1, write_dir=write_dir,
+                                      total_run=40, instance_per_run=1, write_dir=write_dir,
                                       save_model=save_model, save_model_dir=write_dir + '/models/',
                                       plot_dir=None)
     elif case == 4:
@@ -248,45 +248,52 @@ ett_store = ['./excel/ett_30testset_cut Invariant 1.xlsx',
 
 #'./excel/ett_125trainset_cut Invariant 30.xlsx'
 
-selector(case=3.1, round=8, loader_excel='./excel/Data_loader_spline_full_onehot_R8_cut_CM3.xlsx', save_model=False,
-         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant',
-         results_name='ANN', model_mode='ann',
-         test_excel_dir='./excel/ett_30testset_cut.xlsx',
-         ett_store=ett_store)
-selector(case=3.1, round=9, loader_excel='./excel/Data_loader_spline_full_onehot_R9_cut_CM3.xlsx', save_model=False,
-         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant',
-         results_name='ann', model_mode='ann',
-         test_excel_dir='./excel/ett_30testset_cut.xlsx',
-         ett_store=ett_store)
-selector(case=3.1, round=10, loader_excel='./excel/Data_loader_spline_full_onehot_R10_cut_CM3.xlsx', save_model=False,
-         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant',
-         results_name='ann', model_mode='ann',
-         test_excel_dir='./excel/ett_30testset_cut.xlsx',
-         ett_store=ett_store)
-selector(case=3.1, round=11, loader_excel='./excel/Data_loader_spline_full_onehot_R11_cut_CM3.xlsx', save_model=False,
-         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant',
-         results_name='ann', model_mode='ann',
-         test_excel_dir='./excel/ett_30testset_cut.xlsx',
-         ett_store=ett_store)
-selector(case=3.1, round=12, loader_excel='./excel/Data_loader_spline_full_onehot_R12_cut_CM3.xlsx', save_model=False,
-         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant',
-         results_name='ann', model_mode='ann',
-         test_excel_dir='./excel/ett_30testset_cut.xlsx',
-         ett_store=ett_store)
-selector(case=3.1, round=13, loader_excel='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx', save_model=False,
-         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant',
-         results_name='ann', model_mode='ann',
-         test_excel_dir='./excel/ett_30testset_cut.xlsx',
-         ett_store=ett_store)
+
+#selector(case=3.1, round=9, loader_excel='./excel/Data_loader_spline_full_onehot_R9_cut_CM3.xlsx', save_model=False,
+#         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant',
+#         results_name='ann', model_mode='ann',
+#         test_excel_dir='./excel/ett_30testset_cut.xlsx',
+#         ett_store=ett_store)
+#
+#selector(case=3.1, round=11, loader_excel='./excel/Data_loader_spline_full_onehot_R11_cut_CM3.xlsx', save_model=False,
+#         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant',
+#         results_name='ann', model_mode='ann',
+#         test_excel_dir='./excel/ett_30testset_cut.xlsx',
+#         ett_store=ett_store)
+#selector(case=3.1, round=12, loader_excel='./excel/Data_loader_spline_full_onehot_R12_cut_CM3.xlsx', save_model=False,
+#         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant',
+#         results_name='ann', model_mode='ann',
+#         test_excel_dir='./excel/ett_30testset_cut.xlsx',
+#         ett_store=ett_store)
+#selector(case=3.1, round=13, loader_excel='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx', save_model=False,
+#         smote_numel=1100, smote_excel=None, scoring='re', augment_type='smote',
+#         results_name='dtr', model_mode='dtr',
+#         test_excel_dir='./excel/ett_30testset_cut.xlsx',
+#         ett_store=ett_store)
+#selector(case=3.1, round=13, loader_excel='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx', save_model=False,
+#         smote_numel=None, smote_excel=None, scoring='re', augment_type=None,
+#         results_name='dtr test', model_mode='dtr',
+#         test_excel_dir='./excel/ett_30testset_cut.xlsx',
+#         ett_store=ett_store)
+#selector(case=3.1, round=12, loader_excel='./excel/Data_loader_spline_full_onehot_R12_cut_CM3.xlsx', save_model=False,
+#         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant',
+#         results_name='ann', model_mode='ann',
+#         test_excel_dir='./excel/ett_30testset_cut.xlsx',
+#         ett_store=ett_store)
+#selector(case=3.1, round=13, loader_excel='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx', save_model=False,
+#         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant',
+#         results_name='ann', model_mode='ann',
+#         test_excel_dir='./excel/ett_30testset_cut.xlsx',
+#         ett_store=ett_store)
 #selector(case=3.1, round=13, loader_excel='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx', save_model=True,
 #         smote_numel=50, smote_excel=None, scoring='re', augment_type='invariant',
 #         results_name='DTR ett Invariant 50',
 #         test_excel_dir='./excel/Data_loader_spline_full_onehot_testset_cut_CM3.xlsx',
 #         ett_store=ett_store)
-#selector(case=4, write_dir='./results/hparams_opt round 8 ann')
-#selector(case=4, write_dir='./results/hparams_opt round 9 ann')
-#selector(case=4, write_dir='./results/hparams_opt round 10 ann')
+selector(case=4, write_dir='./results/hparams_opt round 11 ann mse')
 #selector(case=4, write_dir='./results/hparams_opt round 11 ann')
+#selector(case=4, write_dir='./results/hparams_opt round 12 ann')
+#selector(case=4, write_dir='./results/hparams_opt round 13 ann')
 #selector(case=4, write_dir='./results/hparams_opt round 12 ann')
 #selector(case=4, write_dir='./results/hparams_opt round 13 ann')
 #selector(case=4, write_dir='./results/hparams_opt round 8 DTR')

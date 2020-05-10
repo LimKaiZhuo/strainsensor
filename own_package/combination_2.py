@@ -20,43 +20,70 @@ def prepare_grand_data_store(dir_store):
 
 
 def get_mse_re(y, p_y):
-    return np.mean((y-p_y)**2), np.mean(np.abs(y-p_y)/y)
-
+    return np.mean((y - p_y) ** 2), np.mean(np.abs(y - p_y).T / y[:, -1].T)
 
 
 def ga_train_val_eval_on_test(results_dir, data_store, hparams):
+    # 9, 10 col is the sett ett df.
+    # 11 is str but only for HE onwards, before that no str (true training) df
+    # -3 is hparams
+    # - 2 is unseen mse and he
+    # -1 is unseen df
+    ett_names = ['I01-1', 'I01-2', 'I01-3',
+                 'I05-1', 'I05-2', 'I05-3',
+                 'I10-1', 'I10-2', 'I10-3',
+                 'I30-1', 'I30-2', 'I30-3',
+                 'I50-1', 'I50-2', 'I50-3',
+                 '125Test', '125Test I01', '125Test I05', '125Test I10']
+
+    trainset_ett_idx = -4
+    for trial, data in enumerate(data_store):
+        untrainset_df = data[10][trainset_ett_idx].copy(deep=True)
+        ov_df = data[5]
+        untrainset_df.iloc[:ov_df.shape[0], -3:] = ov_df.iloc[:, -3:]
+        y = untrainset_df.iloc[:, :3].values
+        p_y = untrainset_df.iloc[:, -3:].values
+        mse = np.mean((y - p_y) ** 2)
+        he = np.mean(np.abs(y - p_y).T / y[:, -1])
+        data.append([mse, he])
+        data.append([y, p_y])
+
     p_yt_store = np.array([x[4].iloc[:, -3:].values for x in data_store])
-    yt = data_store[0][4].iloc[:,-6:-3].values
+    yt = data_store[0][4].iloc[:, -6:-3].values
     p_yv_store = np.array([x[5].iloc[:, -3:].values for x in data_store])
     yv = data_store[0][5].iloc[:, -6:-3].values
     p_ytt_store = np.array([x[6].iloc[:, -3:].values for x in data_store])
     ytt = data_store[0][6].iloc[:, -6:-3].values
-    #p_y_names = [z for x in data_store for z in x[0][0]]
+    p_yett_store = [np.array([x[10][idx].iloc[:, -3:].values for x in data_store]) for idx in
+                    range(len(data_store[0][10]))]
+    yett_store = [data_store[0][10][idx].iloc[:, -6:-3].values for idx in range(len(data_store[0][10]))]
+    p_yuns_store = np.array([x[-1][-1] for x in data_store])
+    yuns = data_store[0][-1][0]
+    # p_y_names = [z for x in data_store for z in x[0][0]]
     p_y_names = [x[1][0] for x in data_store]
     total_models = len(p_y_names)
     creator.create("FitnessMax", base.Fitness, weights=(-1,))
     creator.create("Individual", list, fitness=creator.FitnessMax)
 
     def eval1(individual):
-        selected_mask = [idx for idx, value in enumerate(individual) if value==1]
-        p_yt_selected_mean = np.mean(p_yt_store[selected_mask,:,:], axis=0)
-        re_t = np.mean(np.abs(yt-p_yt_selected_mean)/yt)
-
+        selected_mask = [idx for idx, value in enumerate(individual) if value == 1]
+        p_yt_selected_mean = np.mean(p_yt_store[selected_mask, :, :], axis=0)
+        re_t = np.mean(np.abs(yt - p_yt_selected_mean).T / yt[:, -1].T)
         p_yv_selected_mean = np.mean(p_yv_store[selected_mask, :, :], axis=0)
-        re_v = np.mean(np.abs(yv - p_yv_selected_mean) / yv)
+        re_v = np.mean(np.abs(yv - p_yv_selected_mean).T / yv[:, -1].T)
 
-        re = (re_t+re_v)/2
+        re = (re_t + re_v) / 2
         return (re,)
 
     def eval2(individual):
-        selected_mask = [idx for idx, value in enumerate(individual) if value==1]
-        p_yt_selected_mean = np.mean(p_yt_store[selected_mask,:,:], axis=0)
-        re_t = np.mean(np.abs(yt-p_yt_selected_mean)/yt)
+        selected_mask = [idx for idx, value in enumerate(individual) if value == 1]
+        p_yt_selected_mean = np.mean(p_yt_store[selected_mask, :, :], axis=0)
+        re_t = np.mean(np.abs(yt - p_yt_selected_mean).T / yt[:, -1].T)
 
         p_yv_selected_mean = np.mean(p_yv_store[selected_mask, :, :], axis=0)
-        re_v = np.mean(np.abs(yv - p_yv_selected_mean) / yv)
+        re_v = np.mean(np.abs(yv - p_yv_selected_mean).T / yv[:, -1].T)
 
-        re = (re_t+2*re_v)/3
+        re = (re_t + 2 * re_v) / 3
         return (re,)
 
     toolbox = base.Toolbox()
@@ -131,9 +158,37 @@ def ga_train_val_eval_on_test(results_dir, data_store, hparams):
     p_yt_selected_mean = np.mean(p_yt_store[selected_mask, :, :], axis=0)
     p_yv_selected_mean = np.mean(p_yv_store[selected_mask, :, :], axis=0)
     p_ytt_selected_mean = np.mean(p_ytt_store[selected_mask, :, :], axis=0)
+    p_yuns_selected_mean = np.mean(p_yuns_store[selected_mask, :, :], axis=0)
+    p_yett_store_selected_mean = [np.mean(x[selected_mask, :, :], axis=0) for x in p_yett_store]
     mse_t, re_t = get_mse_re(yt, p_yt_selected_mean)
     mse_v, re_v = get_mse_re(yv, p_yv_selected_mean)
     mse_tt, re_tt = get_mse_re(ytt, p_ytt_selected_mean)
+    mse_re_ett_store = [get_mse_re(yett, p_yett) for yett, p_yett in zip(yett_store, p_yett_store_selected_mean)]
+    var_ett = []
+    for idx, (invariant, p_y) in enumerate(
+            zip([1, 1, 1, 5, 5, 5, 10, 10, 10, 30, 30, 30, 50, 50, 50, 0, 1, 5, 10], p_yett_store_selected_mean)):
+        if invariant == 0:
+            var_ett.append(0)
+        else:
+
+            if idx < 15:
+                base_numel = 30
+            else:
+                base_numel = 125
+            var_ett.append(
+                np.mean(
+                    [np.std(
+                        np.concatenate((p_y[i:i+1, :],
+                                        p_y[base_numel + invariant * i:base_numel + invariant * i + invariant, :]), axis=0)
+                    , axis=0)
+                        for i in range(base_numel)])
+            )
+            #i = 5
+            #print('invariant {} idx {} shape {}'.format(invariant, idx, np.concatenate((p_y[i:i+1, :],
+            #                            p_y[base_numel + invariant * i:base_numel + invariant * i + invariant, :]), axis=0).shape))
+
+
+    mse_uns, re_uns = get_mse_re(yuns, p_yuns_selected_mean)
 
     def print_results(name, y, p_y, mse, re):
         nonlocal wb, ws
@@ -143,12 +198,23 @@ def ga_train_val_eval_on_test(results_dir, data_store, hparams):
         print_df_to_excel(df=df, ws=ws)
         start_col = len(df.columns) + 3
         ws.cell(1, start_col).value = 'MSE'
-        ws.cell(2, start_col).value = 'RE'
-        ws.cell(1, start_col+1).value = mse
-        ws.cell(2, start_col+1).value = re
+        ws.cell(2, start_col).value = 'HE'
+        ws.cell(1, start_col + 1).value = mse
+        ws.cell(2, start_col + 1).value = re
 
     print_results('Training', yt, p_yt_selected_mean, mse_t, re_t)
     print_results('Val', yv, p_yv_selected_mean, mse_v, re_v)
     print_results('Test', ytt, p_ytt_selected_mean, mse_tt, re_tt)
+    print_results('Unseen', yuns, p_yuns_selected_mean, mse_uns, re_uns)
+    [print_results(name, yett_store[idx], p_yett_store_selected_mean[idx], mse_re[0], mse_re[1]) for name, idx, mse_re
+     in zip(ett_names, range(len(data_store[0][10])), mse_re_ett_store)]
+
+    ws = wb[sheetname]
+    df = pd.DataFrame(data=[[mse_t, mse_v, mse_tt, mse_uns] + [x[0] for x in mse_re_ett_store],
+                            [re_t, re_v, re_tt, re_uns] + [x[1] for x in mse_re_ett_store],
+                            [0,0,0,0] + var_ett],
+                      columns=['Training', 'Val', 'Test', 'Unseen'] + ett_names,
+                      index=['MSE', 'HE', 'Var'])
+    print_df_to_excel(df=df, ws=ws, start_row=5)
 
     wb.save(excel_name)

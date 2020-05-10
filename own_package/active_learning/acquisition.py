@@ -1,8 +1,8 @@
 from tensorflow.python.keras import backend as K
 
 from tensorflow.python.keras.models import load_model
-from keras.utils import CustomObjectScope
-from keras.initializers import glorot_uniform
+from tensorflow.python.keras.utils import CustomObjectScope
+from tensorflow.python.keras.initializers import glorot_uniform
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,7 @@ import openpyxl
 from openpyxl import load_workbook
 import os, time, gc, pickle, itertools, math
 from typing import List
-from collections import Counter
+from collections import Counter, defaultdict
 
 from skopt import gp_minimize, gbrt_minimize, forest_minimize, dummy_minimize
 from skopt.space import Real, Integer, Categorical
@@ -19,7 +19,7 @@ from skopt.plots import plot_convergence
 from sklearn.metrics import pairwise_distances, pairwise_distances_chunked
 from own_package.features_labels_setup import load_data_to_fl
 from own_package.others import print_array_to_excel, create_results_directory, print_df_to_excel
-
+from own_package.pso_ga import pso_ga
 
 
 def load_svm_ensemble(model_directory) -> List:
@@ -49,7 +49,7 @@ def load_svm_ensemble(model_directory) -> List:
     return model_store
 
 
-def svm_ensemble_prediction(model_store, composition):
+def svm_ensemble_prediction(model_store, composition, probability=False):
     """
     Run prediction given one set of feactures_c_norm input, using all the models in model store.
     :param model_store: List of keras models returned by the def load_model_ensemble
@@ -58,16 +58,23 @@ def svm_ensemble_prediction(model_store, composition):
     """
     predictions_store = []
     distance_store = []
+    proba_store = []
     if len(composition.shape) == 1:
         composition = composition.reshape(1, 2)
     for model in model_store:
         predictions_store.append(model.model.predict(composition))
         distance_store.append(model.model.decision_function(composition))
+        if probability:
+            proba_store.append(model.model.predict_proba(composition)[:,1])
 
     predictions = np.round(np.average(np.array(predictions_store), axis=0), decimals=0)
     distance = np.mean(np.array(distance_store), axis=0)
 
-    return predictions, distance
+    if probability:
+        probability = np.mean(np.array(proba_store),axis = 0)
+        return predictions, distance, probability
+    else:
+        return predictions, distance
 
 
 def load_model_ensemble(model_directory) -> List:
@@ -357,6 +364,154 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
 
         instance_end = time.time()
         print('Batch {} completed. Time taken: {}'.format(batch + 1, instance_end - instance_start))
+
+def acquisition_opt_pso_ga(bounds, write_dir, svm_directory, loader_file, normalise_labels, pso_params,
+                           batch_runs=1, initial_guess=None, norm_mask=None,):
+    """
+    bounds = [[5, 200, ],
+              [0, 200, ],
+              [5, 200, ],
+              [0, 200, ],
+              [10, 2000],
+              [0, 0.3]]
+    :param model_mode:
+    :param loader_file:
+    :param total_run:
+    :param instance_per_run:
+    :param hparam_file:
+    :return:
+    """
+
+    print('Writing into {}/acq.xlsx'.format(write_dir))
+    wb = openpyxl.Workbook()
+
+    model_store = load_model_ensemble('{}/models'.format(write_dir))
+    svm_store = load_svm_ensemble(svm_directory)
+
+    fl = load_data_to_fl(loader_file, norm_mask=norm_mask, normalise_labels=normalise_labels, label_type='cutoff')
+    # CNT, PVA, Thickness, Dimension
+    pmin = [x[0] for x in bounds]
+    pmax = [x[1] for x in bounds]
+
+    smin = [abs(x - y) * 0.001 for x, y in zip(pmin, pmax)]
+    smax = [abs(x - y) * 0.5 for x, y in zip(pmin, pmax)]
+
+
+    for batch, init_guess in zip(list(range(batch_runs)), initial_guess):
+        instance_start = time.time()
+        data_store = []
+        def fitness(params):
+            nonlocal data_store
+            features = np.array(params)
+            x = features[0]
+            y = features[1]
+            if x + y > 1:
+                u = -y + 1
+                v = -x + 1
+                features[0:2] = np.array([u, v])
+
+            # SVM Check
+            p_class, distance = svm_ensemble_prediction(svm_store, features[0:2])
+
+            if distance.item() < 0:
+                # Distance should be negative value when SVM assigns class 0. Hence a_score will be negative.
+                # The more negative the a_score is, the further the composition is from the hyperplane,
+                # hence, the less likely the optimizer will select examples with class 0.
+                a_score = 10e5 * distance.item()
+                prediction_mean=[-1] * fl.labels_dim
+                prediction_std=[-1] * fl.labels_dim
+                l2_dist=-1
+                disagreement=-1
+            elif features[0] + features[1] > 1:
+                # Distance should be negative value when SVM assigns class 0. Hence a_score will be negative.
+                # The more negative the a_score is, the further the composition is from the hyperplane,
+                # hence, the less likely the optimizer will select examples with class 0.
+                a_score = 10e5 * (1 - (features[0] + features[1]))
+                prediction_mean=[-1] * fl.labels_dim
+                prediction_std=[-1] * fl.labels_dim
+                l2_dist=-1
+                disagreement=-1
+            else:
+                features_c = features[:-1]
+                onehot = features[-1].item()
+                if onehot == 0:
+                    features_in = np.concatenate((features_c, np.array([1, 0, 0])))
+                elif onehot == 1:
+                    features_in = np.concatenate((features_c, np.array([0, 1, 0])))
+                elif onehot == 2:
+                    features_in = np.concatenate((features_c, np.array([0, 0, 1])))
+
+                features_input_norm = fl.apply_scaling(features_in)
+                prediction_mean, prediction_std = model_ensemble_prediction(model_store, features_input_norm)
+                # Greedy Sampling
+                # Get L2 distance of sampled example to all existing example in fl class object
+                # Note: L2 distance is calculated using the normalised features so that all feature have the same weight
+                l2_distance = np.linalg.norm(x=fl.features_c_norm - features_input_norm.reshape((1, -1)), ord=2, axis=1)
+                l2_distance = np.min(l2_distance)  # Take the minimum L2 dist.
+
+                # Overall Acquisition Score. Higher score if l2 distance is larger and uncertainty (std) is larger.
+                disagreement = np.sum(prediction_std)
+                a_score = l2_distance * disagreement
+
+                # Storing intermediate results into list to print into excel later
+                l2_dist=l2_distance
+                disagreement=disagreement
+                prediction_mean=prediction_mean.flatten().tolist()
+                prediction_std=prediction_std.flatten().tolist()
+            data =list(features) + [a_score, disagreement, l2_dist] + prediction_mean + prediction_std
+            data_store.append(data)
+            return (-a_score,)
+
+        _,_,best = pso_ga(func=fitness, pmin=pmin, pmax=pmax,
+               smin=smin, smax=smax,
+               int_idx=[3], params=pso_params, ga=True, initial_guess=init_guess)
+
+
+
+
+        p_mean_name = np.array(['Pmean_' + str(x) for x in list(map(str, np.arange(1, 4)))])
+        p_std_name = np.array(['Pstd_' + str(x) for x in list(map(str, np.arange(1, 4)))])
+
+
+        columns = np.concatenate((np.array(fl.features_c_names[:-2]),
+                                  np.array(['A_score']),
+                                  np.array(['Disagreement']),
+                                  np.array(['L2']),
+                                  p_mean_name,
+                                  p_std_name
+                                  ))
+
+        iter_df = pd.DataFrame(data=data_store,
+                               columns=columns)
+
+        iter_df = iter_df.sort_values(by=['A_score'], ascending=False)
+
+        # Creating new worksheet. Even if SNN worksheet already exists, a new SNN1 ws will be created and so on
+        wb.create_sheet(title='Batch_{}'.format(batch+1))
+        ws = wb['Batch_{}'.format(batch+1)]  # Taking the ws name from the back ensures that if SNN1 is the new ws, it works
+        print_df_to_excel(df=iter_df, ws=ws)
+
+        # If batch_runs > 1, next batch will be calculated. The only difference is that the previous best trial point
+        # with the highest a_score will be added to fl.features_c_norm such that the L2 greedy distance will
+        # account for the fact that the previous batch would had contained the best example already.
+        #features = np.array(list(best))
+        features = np.array(init_guess[0])
+        features_c = features[:-1]
+        onehot = features[-1].item()
+        if onehot == 0:
+            features = np.concatenate((features_c, np.array([1, 0, 0])))
+        elif onehot == 1:
+            features = np.concatenate((features_c, np.array([0, 1, 0])))
+        elif onehot == 2:
+            features = np.concatenate((features_c, np.array([0, 0, 1])))
+
+        fl.features_c_norm = np.concatenate((fl.features_c_norm, fl.apply_scaling(features)), axis=0)
+
+        instance_end = time.time()
+        print('Batch {} completed. Time taken: {}'.format(batch + 1, instance_end - instance_start))
+        wb.save('{}/acq.xlsx'.format(write_dir))
+        wb.close()
+        wb = openpyxl.load_workbook('{}/acq.xlsx'.format(write_dir))
 
 
 def l2_points_opt(numel, write_dir, svm_directory, seed_number_of_expt, total_expt):

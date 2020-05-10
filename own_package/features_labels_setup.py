@@ -258,11 +258,11 @@ class Features_labels:
             fl_store.append(
                 (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
-                                 labels_classification=yclasstrain,
+                                 labels_classification=yclasstrain, labels_names=self.labels_names,
                                  norm_mask=self.norm_mask, features_c_names=self.features_c_names, label_type=self.label_type),
                  Features_labels(xval, yendval, yval, idx=xval_idx, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
-                                 labels_classification=yclassval,
+                                 labels_classification=yclassval, labels_names=self.labels_names,
                                  norm_mask=self.norm_mask, features_c_names=self.features_c_names, label_type=self.label_type))
             )
         return fl_store
@@ -293,12 +293,12 @@ class Features_labels:
                 (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
                                  norm_mask=self.norm_mask, features_c_names=self.features_c_names,
-                                 label_type=self.label_type),
+                                 label_type=self.label_type, labels_names=self.labels_names),
                  Features_labels(xval, yendval, yval, idx=xval_idx, scaler=self.scaler,
                                  normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
                                  norm_mask=self.norm_mask, features_c_names=self.features_c_names,
-                                 label_type=self.label_type))
+                                 label_type=self.label_type, labels_names=self.labels_names))
             )
         return fl_store
 
@@ -326,12 +326,12 @@ class Features_labels:
             fl_store.append(
                 (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
-                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,labels_names=self.labels_names,
                                  label_type=self.label_type),
                  Features_labels(xval, yendval, yval, idx=xval_idx, scaler=self.scaler,
                                  normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
-                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,labels_names=self.labels_names,
                                  label_type=self.label_type))
             )
         return fl_store
@@ -360,12 +360,12 @@ class Features_labels:
             fl_store.append(
                 (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
-                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,labels_names=self.labels_names,
                                  label_type=self.label_type),
                  Features_labels(xval, yendval, yval, idx=xval_idx, scaler=self.scaler,
                                  normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
-                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,labels_names=self.labels_names,
                                  label_type=self.label_type))
             )
         return fl_store

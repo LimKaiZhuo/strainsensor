@@ -6,7 +6,7 @@ from tensorflow.python.keras.layers.convolutional import Conv1D
 from tensorflow.python.keras import regularizers
 from tensorflow.python.keras import backend as K
 from tensorflow.keras.optimizers import Adam
-from tensorflow.python.keras.losses import MeanAbsolutePercentageError
+from tensorflow.python.keras.losses import MeanAbsolutePercentageError, mean_squared_error
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,7 +18,7 @@ from typing import List, Dict
 
 def create_hparams(shared_layers=0, ts_layers=0, cs_layers=0,
                    learning_rate=0.001, optimizer='Adam', epochs=100, batch_size=64,
-                   activation='relu',
+                   activation='relu', loss='mape',
                    shared = 10, end = 10, pre = 10, filters = 10,
                    reg_l1=0, reg_l2=0,
                    epsilon=1, c=1,
@@ -30,7 +30,7 @@ def create_hparams(shared_layers=0, ts_layers=0, cs_layers=0,
     """
     names = ['shared_layers', 'ts_layers', 'cs_layers',
              'learning_rate', 'optimizer', 'epochs', 'batch_size',
-             'activation',
+             'activation', 'loss',
              'shared', 'end', 'pre', 'filters',
              'reg_l1', 'reg_l2',
              'epsilon', 'c',
@@ -38,7 +38,7 @@ def create_hparams(shared_layers=0, ts_layers=0, cs_layers=0,
              'verbose']
     values = [shared_layers, ts_layers, cs_layers,
               learning_rate, optimizer, epochs, batch_size,
-              activation,
+              activation, loss,
               shared, end, pre, filters,
               reg_l1, reg_l2,
               epsilon, c,
@@ -331,13 +331,23 @@ class Kmodel:
             '''
             self.model = Model(inputs=features_in, outputs=[end_node, x])
 
-        optimizer = Adam(clipnorm=1)
+        optimizer = Adam(learning_rate=hparams['learning_rate'], clipnorm=1)
         def weighted_mse(y_true, y_pred):
             loss_weights = np.sqrt(np.arange(1, 20))
             #loss_weights = np.arange(1, 20)
             return K.mean(K.square(y_pred - y_true)*loss_weights, axis=-1)
 
-        self.model.compile(optimizer=optimizer, loss=MeanAbsolutePercentageError())
+        def haitao_error(y_true, y_pred):
+            diff = K.abs((y_true - y_pred) / K.reshape(K.clip(K.abs(y_true[:,-1]),
+                                                    K.epsilon(),
+                                                    None), (-1,1)))
+            return 100. * K.mean(diff, axis=-1)
+        if hparams['loss'] == 'mape':
+            self.model.compile(optimizer=optimizer, loss=MeanAbsolutePercentageError())
+        elif hparams['loss'] == 'haitao':
+            self.model.compile(optimizer=optimizer, loss=haitao_error)
+        elif hparams['loss'] == 'mse':
+            self.model.compile(optimizer=optimizer, loss='mean_squared_error')
         #self.model.summary()
 
     def train_model(self, fl, i_fl,

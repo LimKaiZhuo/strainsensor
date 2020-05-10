@@ -13,7 +13,7 @@ import time, os, pickle
 from own_package.models.models import MTmodel, Kmodel, Pmodel
 from own_package.svr import SVRmodel, MIMOSVRmodel, DTRmodel, Predict_SVR_DTR
 from .others import print_array_to_excel, print_df_to_excel
-from .features_labels_setup import load_data_to_fl
+
 
 def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
             skf_file, label_type='cutoff', scoring='mse',
@@ -545,6 +545,11 @@ def run_skf_train_val_test_error(model_mode, loss_mode, fl, fl_store, test_fl, e
     val_labels = []
     column_headers = fl.labels_names
 
+    str_p_y_store = []
+    str_df_store = []
+    str_mse_store = []
+    str_mre_store = []
+
     st_p_y_store = []
     st_df_store = []
     st_mse_store = []
@@ -588,6 +593,11 @@ def run_skf_train_val_test_error(model_mode, loss_mode, fl, fl_store, test_fl, e
         else:
             model.train_model(ss_fl, i_ss_fl)
 
+        str_p_y, str_df, str_mse, str_mre = eval_model_on_fl(model, ss_fl, return_df=True)
+        str_p_y_store.append(str_p_y)
+        str_df_store.append(str_df)
+        str_mse_store.append(str_mse)
+        str_mre_store.append(str_mre)
         st_p_y, st_df, st_mse, st_mre = eval_model_on_fl(model, fl, return_df=True)
         st_p_y_store.append(st_p_y)
         st_df_store.append(st_df)
@@ -744,7 +754,8 @@ def run_skf_train_val_test_error(model_mode, loss_mode, fl, fl_store, test_fl, e
             [sett_mse_store, sett_mre_store],
             [ett_mse_store, ett_mre_store],
             sett_df_store,
-            ett_df_store]
+            ett_df_store,
+            [str_p_y_store, str_df_store, str_mse_store, str_mre_store]]
 
     if scoring == 'mse':
         return mse_full, train_mse, data

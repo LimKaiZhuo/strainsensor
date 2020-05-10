@@ -1,47 +1,66 @@
 import numpy as np
+import pandas as pd
 import pickle
+import openpyxl
 import matplotlib.pyplot as plt
 from own_package.active_learning.acquisition import features_to_features_input, \
     svm_ensemble_prediction, load_svm_ensemble, load_model_ensemble, model_ensemble_prediction
 from own_package.svm_classifier import SVMmodel
 from own_package.hparam_opt import grid_hparam_opt
 from own_package.spline_analysis import plot_arcsinh_predicted_splines
-from own_package.model_combination import combine_excel_results, cutoff_combine_excel_results, mse_tracker, final_prediction_results,cutoff_combine_excel_results_with_excel
-from own_package.others import create_results_directory
+from own_package.model_combination import combine_excel_results, cutoff_combine_excel_results, mse_tracker, \
+    final_prediction_results, cutoff_combine_excel_results_with_excel
+from own_package.others import create_results_directory, print_df_to_excel
 
 
 def test(selector, number=None):
     if selector == 1:
-        svm_store = load_svm_ensemble('./results/svm_results/models')
+        write_dir = './results/svm gamma130 with proba'
+        svm_store = load_svm_ensemble('{}/models'.format(write_dir))
         x, y = np.meshgrid(np.linspace(0, 1, 100), np.linspace(0, 1, 100))
         composition = np.concatenate((x.reshape(-1, 1), y.reshape(-1, 1)), axis=1)
-        prediction, distance = svm_ensemble_prediction(svm_store, composition)
+        prediction, distance, probability = svm_ensemble_prediction(svm_store, composition, probability=True)
         plt.scatter(composition[:, 0], composition[:, 1], c=distance)
         plt.colorbar()
-        plt.savefig('./results/distance map.png', bbox_inches='tight')
+        plt.savefig('./results/svm gamma130 with proba/distance map.png', bbox_inches='tight')
         plt.close()
         plt.scatter(composition[:, 0], composition[:, 1], c=prediction)
         plt.colorbar()
-        plt.savefig('./results/prediction map.png', bbox_inches='tight')
+        plt.savefig('./results/svm gamma130 with proba/prediction map.png', bbox_inches='tight')
+        plt.close()
+        plt.scatter(composition[:, 0], composition[:, 1], c=probability)
+        plt.colorbar()
+        plt.savefig('./results/svm gamma130 with proba/probability map.png', bbox_inches='tight')
         plt.close()
         with open('results/grid full/grid_data', 'rb') as handle:
             fl = pickle.load(handle)
         plt.scatter(fl.features[:, 0], fl.features[:, 1], c=fl.labels)
         plt.colorbar()
-        plt.savefig('./results/actual map.png', bbox_inches='tight')
+        plt.savefig('./results/svm gamma130 with proba/actual map.png', bbox_inches='tight')
         plt.close()
+
+        wb = openpyxl.Workbook()
+        wb.create_sheet('data')
+        x_name = 'CNT'
+        y_name = 'PVA'
+        print_df_to_excel(df=pd.DataFrame(np.array([composition[:, 0],composition[:, 1],prediction, distance, probability]).T,
+                                          columns=[x_name, y_name, 'prediction', 'distance', 'probability']),
+                          ws=wb['data'])
+        wb.save('{}/svm prediction distance prob.xlsx'.format(write_dir))
 
         model = SVMmodel(fl=fl, gamma=130)
         model.train_model(fl=fl)
         prediction, distance = svm_ensemble_prediction([model], composition)
         plt.scatter(composition[:, 0], composition[:, 1], c=distance)
         plt.colorbar()
-        plt.savefig('./results/distance map2.png', bbox_inches='tight')
+        plt.savefig('{}/distance map2.png'.format(write_dir), bbox_inches='tight')
         plt.close()
         plt.scatter(composition[:, 0], composition[:, 1], c=prediction)
         plt.colorbar()
-        plt.savefig('./results/prediction map2.png', bbox_inches='tight')
+        plt.savefig('{}/prediction map2.png'.format(write_dir), bbox_inches='tight')
         plt.close()
+
+
 
     elif selector == 2:
         with open('results/grid full/grid_data', 'rb') as handle:
@@ -71,7 +90,8 @@ def test(selector, number=None):
                                                 './results/hparams_opt Round {} DTR'.format(number),
                                                 './results/hparams_opt Round {} ANN3'.format(number)],
                                      sheets=['svr', 'dtr', 'ann3'],
-                                     results_excel_dir='./results/combination {}/combination CM R{}.xlsx'.format(number, number),
+                                     results_excel_dir='./results/combination {}/combination CM R{}.xlsx'.format(number,
+                                                                                                                 number),
                                      plot_dir='./results/combination {}/plots'.format(number),
                                      plot_mode=False,
                                      fn=6, numel=3)
@@ -79,16 +99,17 @@ def test(selector, number=None):
         cutoff_combine_excel_results(dir_store=['./results/hparams_opt Round {} DTR'.format(number),
                                                 './results/hparams_opt Round {} ANN3 - 2'.format(number)],
                                      sheets=['dtr', 'ann3'],
-                                     results_excel_dir='./results/combination {}/combination CM R{}.xlsx'.format(number, number),
+                                     results_excel_dir='./results/combination {}/combination CM R{}.xlsx'.format(number,
+                                                                                                                 number),
                                      plot_dir='./results/combination {}/plots'.format(number),
                                      plot_mode=False,
                                      fn=6, numel=3)
     elif selector == 6.2:
         cutoff_combine_excel_results_with_excel(
-                                     results_excel_dir='./results/combination_13s_R13_predictions/testset_prediction.xlsx',
-                                     plot_dir='./results/combination_13s_R13_predictions/plots',
-                                     plot_mode=False,
-                                     fn=-1, numel=3)
+            results_excel_dir='./results/combination_13s_R13_predictions/testset_prediction.xlsx',
+            plot_dir='./results/combination_13s_R13_predictions/plots',
+            plot_mode=False,
+            fn=-1, numel=3)
 
     elif selector == 7:
         model_store = load_model_ensemble('./results/skf13/models')
@@ -105,17 +126,18 @@ def test(selector, number=None):
                                  './results/combination {}/combination CM R{}.xlsx'.format('6e', '6e'),
                                  './results/combination {}/combination CM R{}.xlsx'.format(7, 7),
                                  './results/combination {}/combination CM R{}.xlsx'.format(8, 8),
-                                 './results/combination {}/combination CM R{}.xlsx'.format(9,9),
-                                 './results/combination {}/combination CM R{}.xlsx'.format(10,10),
-                                 './results/combination {}/combination CM R{}.xlsx'.format(11,11),
-                                 './results/combination {}/combination CM R{}.xlsx'.format(12,12),
-                                 './results/combination {}/combination CM R{}.xlsx'.format(13,13)],
+                                 './results/combination {}/combination CM R{}.xlsx'.format(9, 9),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(10, 10),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(11, 11),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(12, 12),
+                                 './results/combination {}/combination CM R{}.xlsx'.format(13, 13)],
                     write_excel='./MSE tracker.xlsx',
-                    rounds=[1,2,3,4,5,6,'6e',7,8,9, 10, 11,12,13],
+                    rounds=[1, 2, 3, 4, 5, 6, '6e', 7, 8, 9, 10, 11, 12, 13],
                     headers=['SVR', 'DTR', 'ANN3', 'Combined'],
                     fn=6, numel=3)
     elif selector == 9:
-        write_dir = create_results_directory(results_directory='./results/final_prediction', excels=['final_prediction'])
+        write_dir = create_results_directory(results_directory='./results/final_prediction',
+                                             excels=['final_prediction'])
         final_prediction_results(write_excel='{}/final_prediction.xlsx'.format(write_dir),
                                  model_dir_store=
                                  ['./results/combination {}/models'.format(1),
@@ -165,9 +187,10 @@ def test(selector, number=None):
                                   './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(12, 12),
                                   './excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(13, 13)]
                                  ,
-                                 rounds=[1,2,3,4,5,6,'6e',7,8,9,10,11,12,13],
+                                 rounds=[1, 2, 3, 4, 5, 6, '6e', 7, 8, 9, 10, 11, 12, 13],
                                  fn=6, numel=3
                                  )
+
 
 '''
 ['./results/combination {}/models'.format(1),
@@ -184,23 +207,23 @@ def test(selector, number=None):
                                   './results/combination {}/models'.format(11)]
 '''
 
-#test(9)
-#test(8)
-#test(6, number=1)
-#test(6, number=2)
-#test(6, number=3)
-#test(6, number=4)
-#test(6, number=5)
-#test(6, number=6)
-#test(6, number='6e')
-#test(6, number=7)
-#test(6, number=8)
-#test(6, number=9)
-#test(6, number=10)
-#test(6, number=11)
-#test(6, number=12)
-#test(6, number=13)
-test(6.2, number='13s2')
+# test(9)
+# test(8)
+# test(6, number=1)
+# test(6, number=2)
+# test(6, number=3)
+# test(6, number=4)
+# test(6, number=5)
+# test(6, number=6)
+# test(6, number='6e')
+# test(6, number=7)
+# test(6, number=8)
+# test(6, number=9)
+# test(6, number=10)
+# test(6, number=11)
+# test(6, number=12)
+# test(6, number=13)
+test(1, number='13s2')
 '''
 test(6, number=2)
 test(6, number=3)

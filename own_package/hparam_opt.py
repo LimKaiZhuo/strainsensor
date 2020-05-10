@@ -733,7 +733,6 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
 
     if model_mode == 'ann3':
         start_time = time.time()
-
         # bounds = [[10, 300, ],
         #          [50, 800]]
         bounds = [[30, 3000, ],
@@ -742,14 +741,14 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
         pre = Integer(low=bounds[0][0], high=bounds[0][1], name='pre')
         epochs = Integer(low=bounds[1][0], high=bounds[1][1], name='epochs')
         dimensions = [pre, epochs]
-        default_parameters = [500, 2000]
+        default_parameters = [30, 100]
         data_store_count = 1
         data_store_name = 0
         @use_named_args(dimensions=dimensions)
         def fitness(pre, epochs):
             global run_count, data_store, fl, fl_store, data_store, data_store_count, data_store_name
             run_count += 1
-            hparams = create_hparams(pre=pre, epochs=epochs,
+            hparams = create_hparams(pre=pre, epochs=epochs, loss='haitao',
                                      reg_l1=0.0005, reg_l2=0,
                                      verbose=0)
 
@@ -1000,6 +999,10 @@ def read_hparam_data(data_store, write_dir, ett_names, print_s_df, trainset_ett_
         solo_row+=fold_numel
 
         name = data[1][0].partition('hparams_opt')[-1]
+
+        if name == "":
+            name = data[1][0].partition('/results/')[-1]
+
         if len(name) > 30:
             name = name[-30:]
         ot_df_wb.create_sheet(name)
