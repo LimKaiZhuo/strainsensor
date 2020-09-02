@@ -17,7 +17,7 @@ def selector(run, **kwargs):
         acquisition_opt(bounds=bounds, model_directory='{}/models'.format(write_dir),
                         svm_directory='./results/svm gamma130/models',
                         loader_file='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
-                        total_run=500,
+                        total_run=3000,
                         batch_runs=1,
                         normalise_labels=True,
                         norm_mask=[0, 1, 3, 4, 5],
@@ -32,7 +32,7 @@ def selector(run, **kwargs):
                   'ga_iter_min': 2, 'ga_iter_max': 10, 'iter_gamma': 10,
                   'ga_num_min': 5, 'ga_num_max': 20, 'num_beta': 15,
                   'tourn_size': 3, 'cxpd': 0.9, 'mutpd': 0.05, 'indpd': 0.5, 'eta': 0.5,
-                  'pso_iter': 15, 'swarm_size': 30}
+                  'pso_iter': 10, 'swarm_size': 300}
 
         acquisition_opt_pso_ga(bounds=bounds, write_dir=write_dir,
                                svm_directory='./results/svm gamma130/models',
@@ -83,7 +83,7 @@ def selector(run, **kwargs):
 '''
 
 # selector(4,numel=210, write_dir='./results/l2 acq', svm_store='./results/svm gamma130/models', seed_number_expt=5, total_expt=30)
-selector(1, write_dir='./results/dtr_mse_round_13', round=13, batch=1, initial_guess=[[[0, 0.17, 2000, 0]],
+selector(1, write_dir='./results/ann_mse_round_2', round=2, batch=1, initial_guess=[[[0, 0.17, 2000, 0]],
                                                                             [[0.52, 0.39, 1980, 0]],
                                                                             [[0.0, 0.17, 1440, 0]],
                                                                             [[0.96, 0.04, 200, 2]],

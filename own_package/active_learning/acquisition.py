@@ -1,7 +1,7 @@
 from tensorflow.python.keras import backend as K
 
 from tensorflow.python.keras.models import load_model
-from tensorflow.python.keras.utils import CustomObjectScope
+#from tensorflow.python.keras.utils import CustomObjectScope
 from tensorflow.python.keras.initializers import glorot_uniform
 
 import numpy as np
@@ -10,6 +10,7 @@ import openpyxl
 from openpyxl import load_workbook
 import os, time, gc, pickle, itertools, math
 from typing import List
+import time
 from collections import Counter, defaultdict
 
 from skopt import gp_minimize, gbrt_minimize, forest_minimize, dummy_minimize
@@ -76,6 +77,11 @@ def svm_ensemble_prediction(model_store, composition, probability=False):
     else:
         return predictions, distance
 
+def haitao_error(y_true, y_pred):
+    diff = K.abs((y_true - y_pred) / K.reshape(K.clip(K.abs(y_true[:, -1]),
+                                                      K.epsilon(),
+                                                      None), (-1, 1)))
+    return 100. * K.mean(diff, axis=-1)
 
 def load_model_ensemble(model_directory) -> List:
     """
@@ -100,11 +106,14 @@ def load_model_ensemble(model_directory) -> List:
         if name.endswith(".pkl"):
             model_store.append(pickle.load(open(name, 'rb')))
         elif name.endswith('.h5'):
-            with CustomObjectScope({'GlorotUniform': glorot_uniform()}):
+            #with CustomObjectScope({'GlorotUniform': glorot_uniform()}):
+            try:
                 model_store.append(load_model(name))
+            except ValueError:
+                model_store.append(load_model(name, compile=False))
 
         else:
-            raise TypeError('{} found that does not end with .pkl or .h5'.format(name))
+            print('{} found that does not end with .pkl or .h5'.format(name))
         print('Model {} has been loaded'.format(name))
 
     return model_store
@@ -120,8 +129,8 @@ def load_model_chunks(chunks):
                 print('EOFError with {}'.format(name))
                 model_store.append(None)
         elif name.endswith('.h5'):
-            with CustomObjectScope({'GlorotUniform': glorot_uniform()}):
-                model_store.append(load_model(name))
+            #with CustomObjectScope({'GlorotUniform': glorot_uniform()}):
+            model_store.append(load_model(name))
         print('Model {} has been loaded'.format(name))
     return model_store
 
@@ -134,8 +143,13 @@ def model_ensemble_prediction(model_store, features_c_norm):
     """
     predictions_store = []
     for model in model_store:
-        predictions = model.predict(features_c_norm).tolist()
-        predictions_store.append(predictions)
+        p_y = model.predict(features_c_norm)
+        for row, p_label in enumerate(p_y.tolist()):
+            if p_label[1] > p_label[2]:
+                p_y[row, 1] = p_y[row, 2]
+            if p_label[0] > p_y[row, 1]:
+                p_y[row, 0] = p_y[row, 1]
+        predictions_store.append(p_y)
     predictions_store = np.array(predictions_store).squeeze()
     predictions_mean = np.mean(predictions_store, axis=0)
     predictions_std = np.std(predictions_store, axis=0)
@@ -207,15 +221,15 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
         prediction_std_store = []
         l2_dist_store = []
         disagreement_store = []
-        global iter_count
+        global iter_count, end
         iter_count = 0
-
+        end = time.time()
         @use_named_args(space)
         def fitness(**params):
-            global iter_count
+            global iter_count, end
             iter_count += 1
-            if iter_count % 50 == 0:
-                print('Current Iteration: {} out of {} for batch {} '.format(iter_count, total_run, batch + 1))
+            start = time.time()
+            print(start-end)
 
             features = np.array([x for x in params.values()])
             x = features[0]
@@ -273,9 +287,13 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
                 disagreement_store.append(disagreement)
                 prediction_mean_store.append(prediction_mean.flatten().tolist())
                 prediction_std_store.append(prediction_std.flatten().tolist())
+
+                end = time.time()
+                if iter_count % 50 == 0:
+                    print('Current Iteration: {} out of {} for batch {}. '.format(iter_count, total_run, batch + 1))
             return -a_score
 
-        '''
+
         search_result = forest_minimize(func=fitness,
                                         dimensions=space,
                                         acq_func='EI',  # Expected Improvement.
@@ -287,6 +305,7 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
                                        dimensions=space,
                                        n_calls=total_run,
                                        verbose=False)
+                                       '''
 
         plot_convergence(search_result)
         x_iters = search_result.x_iters
@@ -402,6 +421,7 @@ def acquisition_opt_pso_ga(bounds, write_dir, svm_directory, loader_file, normal
         data_store = []
         def fitness(params):
             nonlocal data_store
+            #start = time.time()
             features = np.array(params)
             x = features[0]
             y = features[1]
@@ -460,6 +480,8 @@ def acquisition_opt_pso_ga(bounds, write_dir, svm_directory, loader_file, normal
                 prediction_std=prediction_std.flatten().tolist()
             data =list(features) + [a_score, disagreement, l2_dist] + prediction_mean + prediction_std
             data_store.append(data)
+            #end = time.time()
+            #print(end-start)
             return (-a_score,)
 
         _,_,best = pso_ga(func=fitness, pmin=pmin, pmax=pmax,

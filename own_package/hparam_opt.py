@@ -736,19 +736,19 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
         # bounds = [[10, 300, ],
         #          [50, 800]]
         bounds = [[30, 3000, ],
-                  [100, 8000]]
+                  [100, 4000]]
 
         pre = Integer(low=bounds[0][0], high=bounds[0][1], name='pre')
         epochs = Integer(low=bounds[1][0], high=bounds[1][1], name='epochs')
         dimensions = [pre, epochs]
-        default_parameters = [30, 100]
+        default_parameters = [300, 500]
         data_store_count = 1
         data_store_name = 0
         @use_named_args(dimensions=dimensions)
         def fitness(pre, epochs):
             global run_count, data_store, fl, fl_store, data_store, data_store_count, data_store_name
             run_count += 1
-            hparams = create_hparams(pre=pre, epochs=epochs, loss='haitao',
+            hparams = create_hparams(pre=pre, epochs=epochs, loss='mse', learning_rate=0.001/2,
                                      reg_l1=0.0005, reg_l2=0,
                                      verbose=0)
 
@@ -790,13 +790,13 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
             return loss
     elif model_mode == 'dtr':
         start_time = time.time()
-        bounds = [[3, 500, ],
-                  [1, 500]]
+        bounds = [[1, 200, ],
+                  [1, 1000]]
 
         depth = Integer(low=bounds[0][0], high=bounds[0][1], name='depth')
         num_est = Integer(low=bounds[1][0], high=bounds[1][1], name='num_est')
         dimensions = [depth, num_est]
-        default_parameters = [6, 300]
+        default_parameters = [3, 300]
         data_store_count = 1
         data_store_name = 0
         @use_named_args(dimensions=dimensions)
@@ -838,11 +838,12 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
             end_time = time.time()
             print('**************************************************************************************************\n'
                   'Run Number {} \n'
+                  'Depth {}, No. Estimators {}\n'
                   'Instance per run {} \n'
                   'Current run {} {} \n'
                   'Time Taken: {}\n'
                   '*********************************************************************************************'.format(
-                run_count, instance_per_run, scoring, loss, end_time - start_time))
+                run_count, depth, num_est, instance_per_run, scoring, loss, end_time - start_time))
             return loss
     elif model_mode == 'svr':
         start_time = time.time()

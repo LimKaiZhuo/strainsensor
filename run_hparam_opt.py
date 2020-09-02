@@ -197,7 +197,7 @@ def selector(case, **kwargs):
             hparam_opt_train_val_test(model_mode='dtr', loss_mode='dtr', fl_in=fl, fl_store_in=fl_store, test_fl=test_fl,
                                       ett_fl_store=ett_fl_store,
                                       norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
-                                      total_run=90, instance_per_run=1, write_dir=write_dir,
+                                      total_run=40, instance_per_run=1, write_dir=write_dir,
                                       save_model=save_model, save_model_dir=write_dir + '/models/',
                                       plot_dir=None)
         elif model_mode == 'ann':
@@ -205,9 +205,9 @@ def selector(case, **kwargs):
                                       test_fl=test_fl,
                                       ett_fl_store=ett_fl_store,
                                       norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
-                                      total_run=40, instance_per_run=1, write_dir=write_dir,
+                                      total_run=20, instance_per_run=1, write_dir=write_dir,
                                       save_model=save_model, save_model_dir=write_dir + '/models/',
-                                      plot_dir=None)
+                                      plot_dir=write_dir+'/learning rate plots/')
     elif case == 4:
         ett_names = ['I01-1', 'I01-2', 'I01-3',
                      'I05-1', 'I05-2', 'I05-3',
@@ -285,12 +285,15 @@ ett_store = ['./excel/ett_30testset_cut Invariant 1.xlsx',
 #         results_name='ann', model_mode='ann',
 #         test_excel_dir='./excel/ett_30testset_cut.xlsx',
 #         ett_store=ett_store)
-#selector(case=3.1, round=13, loader_excel='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx', save_model=True,
-#         smote_numel=50, smote_excel=None, scoring='re', augment_type='invariant',
-#         results_name='DTR ett Invariant 50',
-#         test_excel_dir='./excel/Data_loader_spline_full_onehot_testset_cut_CM3.xlsx',
-#         ett_store=ett_store)
-selector(case=4, write_dir='./results/hparams_opt round 11 ann mse')
+for i in [13]:
+    selector(case=3.1, round=i, loader_excel='./excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(i), save_model=True,
+             smote_numel=100, smote_excel=None, scoring='re', augment_type='invariant', model_mode='dtr',
+             results_name='dtr_deep_I100_round_{}'.format(i),
+             test_excel_dir='./excel/ett_30testset_cut.xlsx',
+             ett_store=ett_store)
+#for i in [1,2,3,4,5,6,'6e',7,8,9,10,11,12,13]:
+#    selector(case=4, write_dir='./results/hparams_opt round {} DTR_weak_round_{}'.format(i,i))
+#selector(case=4, write_dir='./results/hparams_opt round 13 DTR_weak_round_13 - 2')
 #selector(case=4, write_dir='./results/hparams_opt round 11 ann')
 #selector(case=4, write_dir='./results/hparams_opt round 12 ann')
 #selector(case=4, write_dir='./results/hparams_opt round 13 ann')

@@ -362,14 +362,15 @@ def features_correlation_analysis(data_excel):
     df2 = df[df.iloc[:, -2] == 1].iloc[:, :-3]
     df3 = df[df.iloc[:, -1] == 1].iloc[:, :-3]
 
-    x_store = ['CNT Mass Percentage', 'PVA Mass Percentage', 'Thickness nm']
-    mypal = sns.hls_palette(3, l=.3, s=.8)
+    x_store = ['CNT Mass Percentage', 'PVA Mass Percentage', 'Thickness nm', 'Mxene Mass Percentage']
+    mypal = sns.hls_palette(4, l=.3, s=.8)
 
     for dimension, df in enumerate([df1, df2, df3]):
+        df['Mxene Mass Percentage'] = 1-df.iloc[:,0]-df.iloc[:,1]
         for x, color in zip(x_store, mypal):
             plt.close()
             sns.jointplot(x=x, y='Working Range', data=df, alpha=0.3, color=color, stat_func=stat.pearsonr)
-            plt.savefig('{}/{}_dim_{}.png'.format(write_dir, x, dimension + 1), bbox_inches='tight')
+            plt.savefig('{}/{}_dim_{}.png'.format(write_dir, x, dimension), bbox_inches='tight')
 
 
 def training_curve_comparision(train_excel, val_excel, write_dir, hparams):

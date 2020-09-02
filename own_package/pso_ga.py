@@ -1,5 +1,6 @@
 import numpy as np
 import deap
+import itertools
 import random, operator, math
 from deap import base
 from deap import benchmarks
@@ -157,18 +158,37 @@ def pso_ga(func, pmin, pmax, smin, smax, int_idx, params, ga, initial_guess=None
     best = None
     pso_hof_num = max(1,round(ga_num_min*0.2))
     pso_hof = tools.HallOfFame(pso_hof_num)
+
+    # Evaluate boundary points first
+    boundary_points = [list(x) for x in itertools.product(*[[x,y] for x,y in zip(pmin, pmax)])]
+    boundary_evals = [func(point) for point in boundary_points]
+
     if initial_guess:
-        if len(initial_guess)<len(pop):
-            for ig, single_p in zip(initial_guess, pop):
-                single_p[:] = ig
-        else:
-            print('Warning: More initial guesses given than the swarm population size!')
-            for ig, single_p in zip(initial_guess[:len(pop)], pop):
-                single_p[:] = ig
+        initial_guess += boundary_points
+    else:
+        initial_guess = boundary_points
+
+    if len(initial_guess)<len(pop):
+        for ig, single_p in zip(initial_guess, pop):
+            single_p[:] = ig
+    else:
+        print('Warning: More initial guesses given than the swarm population size!')
+        for ig, single_p in zip(initial_guess[-len(pop):], pop):
+            single_p[:] = ig
+
+
+
     for g in range(pso_iter):
         # PSO segment first
         for part in pop:
-            part.fitness.values = toolbox.evaluate(part)
+            try:
+                idx = boundary_points.index(part)
+                part.fitness.values = boundary_evals[idx]
+            except ValueError:
+                # Means current part is not a boundary point
+                part.fitness.values = toolbox.evaluate(part)
+
+
             # Note: Fitness comparisons will compare the weighted value. Since weight is negative,
             # the comparison would be opposite unless you specify .values instead.
             if not part.best or part.best.fitness.values[0] > part.fitness.values[0]:

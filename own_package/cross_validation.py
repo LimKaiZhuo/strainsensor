@@ -12,6 +12,7 @@ import time, os, pickle
 # Own Scripts
 from own_package.models.models import MTmodel, Kmodel, Pmodel
 from own_package.svr import SVRmodel, MIMOSVRmodel, DTRmodel, Predict_SVR_DTR
+from own_package.active_learning.acquisition import model_ensemble_prediction
 from .others import print_array_to_excel, print_df_to_excel
 
 
@@ -764,4 +765,197 @@ def run_skf_train_val_test_error(model_mode, loss_mode, fl, fl_store, test_fl, e
     else:
         raise KeyError('Scoring function {} is not valid'.format(scoring))
 
+
+def run_eval_model_on_train_val_test_error(model, fl, fl_store, test_fl, ett_fl_store, model_name, scoring='mse',):
+    # Run k model instance to perform skf
+    predicted_labels_store = []
+    mse_store = []
+    mre_store = []
+    folds = []
+    val_idx = []
+    val_features_c = []
+    val_labels = []
+    column_headers = fl.labels_names
+
+    str_p_y_store = []
+    str_df_store = []
+    str_mse_store = []
+    str_mre_store = []
+
+    st_p_y_store = []
+    st_df_store = []
+    st_mse_store = []
+    st_mre_store = []
+
+    stt_p_y_store = []
+    stt_df_store = []
+    stt_mse_store = []
+    stt_mre_store = []
+
+    sett_p_y_store = []
+    sett_df_store = []
+    sett_mse_store = []
+    sett_mre_store = []
+
+    def eval_model_ensemble_on_fl(model, fl, return_df=True, label_scaler=None):
+        p_y = model.predict(fl.features_c_norm)
+        if label_scaler:
+            p_y = label_scaler(p_y)
+        for row, p_label in enumerate(p_y.tolist()):
+            if p_label[1] > p_label[2]:
+                p_y[row, 1] = p_y[row, 2]
+            if p_label[0] > p_y[row, 1]:
+                p_y[row, 0] = p_y[row, 1]
+        se_store = (fl.labels - p_y) ** 2
+        re_store = (np.abs(fl.labels - p_y).T / fl.labels[:, -1]).T
+        if return_df:
+            df = pd.DataFrame(data=np.concatenate((fl.labels, p_y), axis=1),
+                              index=list(range(1, 1 + fl.count)),
+                              columns=list(fl.labels_names)
+                                      + ['P_{}'.format(col) for col in fl.labels_names])
+            return p_y, df, np.mean(se_store), np.mean(re_store)
+        else:
+            return p_y, np.mean(se_store), np.mean(re_store)
+
+    for fold, fl_tuple in enumerate(fl_store):
+        instance_start = time.time()
+        (ss_fl, i_ss_fl) = fl_tuple  # ss_fl is training fl, i_ss_fl is validation fl
+
+
+
+        str_p_y, str_df, str_mse, str_mre = eval_model_ensemble_on_fl(model, ss_fl, return_df=True)
+        str_p_y_store.append(str_p_y)
+        str_df_store.append(str_df)
+        str_mse_store.append(str_mse)
+        str_mre_store.append(str_mre)
+        st_p_y, st_df, st_mse, st_mre = eval_model_ensemble_on_fl(model, fl, return_df=True)
+        st_p_y_store.append(st_p_y)
+        st_df_store.append(st_df)
+        st_mse_store.append(st_mse)
+        st_mre_store.append(st_mre)
+        stt_p_y, stt_df, stt_mse, stt_mre = eval_model_ensemble_on_fl(model, test_fl, return_df=True)
+        stt_p_y_store.append(stt_p_y)
+        stt_df_store.append(stt_df)
+        stt_mse_store.append(stt_mse)
+        stt_mre_store.append(stt_mre)
+
+        p_y_store = []
+        df_store = []
+        mse_store = []
+        mre_store = []
+
+        for ett_fl in ett_fl_store:
+            p_y, df, mse, mre = eval_model_ensemble_on_fl(model, ett_fl, return_df=True)
+            p_y_store.append(p_y)
+            df_store.append(df)
+            mse_store.append(mse)
+            mre_store.append(mre)
+
+        sett_p_y_store.append(p_y_store)
+        sett_df_store.append(df_store)
+        sett_mse_store.append(mse_store)
+        sett_mre_store.append(mre_store)
+
+        p_y, mse, mre = eval_model_ensemble_on_fl(model, i_ss_fl, return_df=False)
+        predicted_labels_store.extend(p_y)
+        mse_store.append(mse)
+        mre_store.append(mre)
+
+        # Preparing data to put into new_df that consists of all the validation dataset and its predicted labels
+        folds.extend([fold] * i_ss_fl.count)  # Make a col that contains the fold number for each example
+        if len(val_features_c):
+            val_features_c = np.concatenate((val_features_c, i_ss_fl.features_c),
+                                            axis=0)
+        else:
+            val_features_c = i_ss_fl.features_c
+
+        val_labels.extend(i_ss_fl.labels)
+        val_idx.extend(i_ss_fl.idx)
+
+    # Calculating metrics based on complete validation prediction
+    val_labels = np.array(val_labels)
+    predicted_labels_store = np.array(predicted_labels_store)
+    mse_full = mean_squared_error(val_labels, predicted_labels_store)
+    mre_full = np.mean(np.abs(val_labels - predicted_labels_store).T / val_labels[:, -1])
+
+    # Train set
+    p_y = np.mean(np.array(st_p_y_store), axis=0)
+    train_mse = mean_squared_error(fl.labels, p_y)
+    train_mre = np.mean(np.abs(fl.labels - p_y).T / fl.labels[:, -1])
+    new_df = np.concatenate((fl.labels, p_y), axis=1)
+    predicted_labels_name = list(fl.labels_names)
+    predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+    headers = list(fl.labels_names) + predicted_labels_name
+    train_df = pd.DataFrame(data=new_df, columns=headers)
+
+    # Test set
+    p_y = np.mean(np.array(stt_p_y_store), axis=0)
+    test_mse = mean_squared_error(test_fl.labels, p_y)
+    test_mre = np.mean(np.abs(test_fl.labels - p_y).T / test_fl.labels[:, -1])
+    new_df = np.concatenate((test_fl.labels, p_y), axis=1)
+    predicted_labels_name = list(fl.labels_names)
+    predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+    headers = list(fl.labels_names) + predicted_labels_name
+    test_df = pd.DataFrame(data=new_df, columns=headers)
+
+    # Extra testset
+    ett_df_store = []
+    ett_mse_store = []
+    ett_mre_store = []
+    sett_p_y_store = [[x[idx] for x in sett_p_y_store] for idx in range(len(ett_fl_store))]
+
+    for ett_fl, ett_p_y in zip(ett_fl_store, sett_p_y_store):
+        p_y = np.mean(np.array(ett_p_y), axis=0)
+        ett_mse_store.append(mean_squared_error(ett_fl.labels, p_y))
+        ett_mre_store.append(np.mean(np.abs(ett_fl.labels - p_y).T / ett_fl.labels[:, -1]))
+        new_df = np.concatenate((ett_fl.labels, p_y), axis=1)
+        predicted_labels_name = list(fl.labels_names)
+        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        headers = list(fl.labels_names) + predicted_labels_name
+        ett_df_store.append(pd.DataFrame(data=new_df, columns=headers))
+
+    # Creating dataframe to print into excel later.
+    new_df = np.concatenate((np.array(folds)[:, None],  # Convert 1d list to col. vector
+                             val_features_c,
+                             np.array(val_labels),
+                             np.array(predicted_labels_store))
+                            , axis=1)
+    if fl.label_type == 'points':
+        predicted_labels_name = list(map(str, np.arange(2, 101)))
+        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        headers = ['folds'] + \
+                  list(map(str, fl.features_c_names)) + \
+                  list(map(str, np.arange(2, 101))) + \
+                  predicted_labels_name
+    elif fl.label_type == 'cutoff':
+        predicted_labels_name = list(fl.labels_names)
+        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        headers = ['folds'] + \
+                  list(map(str, fl.features_c_names)) + \
+                  list(fl.labels_names) + \
+                  predicted_labels_name
+
+    # val_idx is the original position of the example in the data_loader
+    val_df = pd.DataFrame(data=new_df, columns=headers, index=val_idx).sort_index()
+
+    model_names = ['{}_{}'.format(model_name, x) for x in range(1, fold + 2)]
+    data = [[model_names, st_mse_store, st_mre_store, stt_mse_store, stt_mre_store],
+            [model_name, train_mse, train_mre, mse_full, mre_full, test_mse, test_mre],
+            st_df_store,
+            stt_df_store,
+            train_df,
+            val_df,
+            test_df,
+            [sett_mse_store, sett_mre_store],
+            [ett_mse_store, ett_mre_store],
+            sett_df_store,
+            ett_df_store,
+            [str_p_y_store, str_df_store, str_mse_store, str_mre_store]]
+
+    if scoring == 'mse':
+        return mse_full, train_mse, data
+    elif scoring == 're':
+        return mre_full, train_mre, data
+    else:
+        raise KeyError('Scoring function {} is not valid'.format(scoring))
 

@@ -92,23 +92,48 @@ def selector(case, **kwargs):
     elif case == 4:
         excel_dir = create_excel_file('./results/new_summary.xlsx')
         get_best_trial_from_rounds_custom_metric(dir_store=[
-            ['./results/hparams_opt round 1 ANN - 2','./results/hparams_opt round 1 DTR'],
-            ['./results/hparams_opt round 2 ann - 2','./results/hparams_opt round 2 DTR'],
-            ['./results/hparams_opt round 3 ann','./results/hparams_opt round 3 DTR'],
-            ['./results/hparams_opt round 4 ann','./results/hparams_opt round 4 DTR'],
-            ['./results/hparams_opt round 5 ann','./results/hparams_opt round 5 DTR'],
-            ['./results/hparams_opt round 6 ann','./results/hparams_opt round 6 DTR'],
-            ['./results/hparams_opt round 6e ann','./results/hparams_opt round 6e DTR'],
-            ['./results/hparams_opt round 7 ann','./results/hparams_opt round 7 DTR'],
-            ['./results/hparams_opt round 8 ann','./results/hparams_opt round 8 DTR'],
-            ['./results/hparams_opt round 9 ann','./results/hparams_opt round 9 DTR'],
-            ['./results/hparams_opt round 10 ann','./results/hparams_opt round 10 DTR'],
-            ['./results/hparams_opt round 11 ann','./results/hparams_opt round 11 DTR'],
-            ['./results/hparams_opt round 12 ann','./results/hparams_opt round 12 DTR'],
-            ['./results/hparams_opt round 13 ann','./results/hparams_opt round 13 DTR']],
+            ['./results/hparam active learning/hparams_opt round 1 ANN - 2',
+             './results/hparam active learning/hparams_opt round 1 DTR_weak_round_1'],
+            ['./results/hparam active learning/hparams_opt round 2 ann - 2',
+             './results/hparam active learning/hparams_opt round 2 DTR_weak_round_2'],
+            ['./results/hparam active learning/hparams_opt round 3 ann',
+             './results/hparam active learning/hparams_opt round 3 DTR_weak_round_3'],
+            ['./results/hparam active learning/hparams_opt round 4 ann',
+             './results/hparam active learning/hparams_opt round 4 DTR_weak_round_4'],
+            ['./results/hparam active learning/hparams_opt round 5 ann',
+             './results/hparam active learning/hparams_opt round 5 DTR_weak_round_5'],
+            ['./results/hparam active learning/hparams_opt round 6 ann',
+             './results/hparam active learning/hparams_opt round 6 DTR_weak_round_6'],
+            ['./results/hparam active learning/hparams_opt round 6e ann',
+             './results/hparam active learning/hparams_opt round 6e DTR_weak_round_6e'],
+            ['./results/hparam active learning/hparams_opt round 7 ann',
+             './results/hparam active learning/hparams_opt round 7 DTR_weak_round_7'],
+            ['./results/hparam active learning/hparams_opt round 8 ann',
+             './results/hparam active learning/hparams_opt round 8 DTR_weak_round_8'],
+            ['./results/hparam active learning/hparams_opt round 9 ann mse',
+             './results/hparam active learning/hparams_opt round 9 DTR_weak_round_9'],
+            ['./results/hparam active learning/hparams_opt round 10 ann mse',
+             './results/hparam active learning/hparams_opt round 10 DTR_weak_round_10'],
+            ['./results/hparam active learning/hparams_opt round 11 ann mse',
+             './results/hparam active learning/hparams_opt round 11 DTR_weak_round_11'],
+            ['./results/hparam active learning/hparams_opt round 12 ann mse',
+             './results/hparam active learning/hparams_opt round 12 DTR_weak_round_12'],
+            ['./results/hparam active learning/hparams_opt round 13 ann mse',
+             './results/hparam active learning/hparams_opt round 13 DTR_weak_round_13']],
             excel_subname='overall_summary',
             metric_cols=['Train MSE', 'Val MSE'],
-            weightage=[0.2, 0.8],
+            weightage=[0, 1],
+            results_excel_dir=excel_dir,
+            top_models=3)
+    elif case == 4.1:
+        excel_dir = create_excel_file('./results/DTR_ANN_NDA_top3_E3.xlsx')
+        get_best_trial_from_rounds_custom_metric(dir_store=[
+            ['./results/hparams_opt round 13 DTR_weak_NDA_round_13',
+             './results/hparams_opt round 13 ann NDA HE',],
+        ],
+            excel_subname='overall_summary',
+            metric_cols=['Train MRE', 'Val MRE'],
+            weightage=[0, 1],
             results_excel_dir=excel_dir,
             top_models=3)
     elif case == 5:
@@ -117,7 +142,7 @@ def selector(case, **kwargs):
                      'I10-1', 'I10-2', 'I10-3',
                      'I30-1', 'I30-2', 'I30-3',
                      'I50-1', 'I50-2', 'I50-3',
-                     '125Test', '125Test I01', '125Test I05','125Test I10']
+                     '125Test', '125Test I01', '125Test I05', '125Test I10']
         write_dir = kwargs['write_dir']
         data_store = []
         for filename in os.listdir(write_dir):
@@ -129,5 +154,4 @@ def selector(case, **kwargs):
         pass
 
 
-
-selector(4, write_dir='./results/hparams_opt round 13 ann SMOTE HE')
+selector(4, write_dir='./results/hparams_opt round 13 dtr invariant 10')

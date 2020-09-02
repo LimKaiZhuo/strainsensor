@@ -29,12 +29,7 @@ def ga_train_val_eval_on_test(results_dir, data_store, hparams):
     # -3 is hparams
     # - 2 is unseen mse and he
     # -1 is unseen df
-    ett_names = ['I01-1', 'I01-2', 'I01-3',
-                 'I05-1', 'I05-2', 'I05-3',
-                 'I10-1', 'I10-2', 'I10-3',
-                 'I30-1', 'I30-2', 'I30-3',
-                 'I50-1', 'I50-2', 'I50-3',
-                 '125Test', '125Test I01', '125Test I05', '125Test I10']
+
 
     trainset_ett_idx = -4
     for trial, data in enumerate(data_store):
@@ -86,6 +81,17 @@ def ga_train_val_eval_on_test(results_dir, data_store, hparams):
         re = (re_t + 2 * re_v) / 3
         return (re,)
 
+    def eval3(individual):
+        selected_mask = [idx for idx, value in enumerate(individual) if value == 1]
+        p_yt_selected_mean = np.mean(p_yt_store[selected_mask, :, :], axis=0)
+        re_t = np.mean(np.abs(yt - p_yt_selected_mean).T / yt[:, -1].T)
+
+        p_yv_selected_mean = np.mean(p_yv_store[selected_mask, :, :], axis=0)
+        re_v = np.mean(np.abs(yv - p_yv_selected_mean).T / yv[:, -1].T)
+
+        re = re_v
+        return (re,)
+
     toolbox = base.Toolbox()
     toolbox.register("attr_bool", np.random.choice, np.arange(0, 2), p=hparams['init'])
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, n=total_models)
@@ -94,10 +100,12 @@ def ga_train_val_eval_on_test(results_dir, data_store, hparams):
         toolbox.register("evaluate", eval1)
     elif hparams['eval_func'] == 'eval2':
         toolbox.register("evaluate", eval2)
+    elif hparams['eval_func'] == 'eval3':
+        toolbox.register("evaluate", eval3)
     else:
         raise KeyError('eval_func {} is not valid.'.format(hparams['eval_func']))
     toolbox.register("mate", tools.cxTwoPoint)
-    toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
+    toolbox.register("mutate", tools.mutFlipBit, indpb=0.2)
     toolbox.register("select", tools.selTournament, tournsize=3)
     # Logging
     stats = tools.Statistics(key=lambda ind: ind.fitness.values)
@@ -158,15 +166,35 @@ def ga_train_val_eval_on_test(results_dir, data_store, hparams):
     p_yt_selected_mean = np.mean(p_yt_store[selected_mask, :, :], axis=0)
     p_yv_selected_mean = np.mean(p_yv_store[selected_mask, :, :], axis=0)
     p_ytt_selected_mean = np.mean(p_ytt_store[selected_mask, :, :], axis=0)
-    p_yuns_selected_mean = np.mean(p_yuns_store[selected_mask, :, :], axis=0)
+    unseen_missing = False
+    try:
+        p_yuns_selected_mean = np.mean(p_yuns_store[selected_mask, :, :], axis=0)
+        ett_names = ['I01-1', 'I01-2', 'I01-3',
+                     'I05-1', 'I05-2', 'I05-3',
+                     'I10-1', 'I10-2', 'I10-3',
+                     'I30-1', 'I30-2', 'I30-3',
+                     'I50-1', 'I50-2', 'I50-3',
+                     '125Test', '125Test I01', '125Test I05', '125Test I10']
+    except IndexError:
+        unseen_missing = True
+        ett_names = ['I01-1', 'I01-2', 'I01-3',
+                     'I05-1', 'I05-2', 'I05-3',
+                     'I10-1', 'I10-2', 'I10-3',
+                     'I30-1', 'I30-2', 'I30-3',
+                     'I50-1', 'I50-2', 'I50-3',]
     p_yett_store_selected_mean = [np.mean(x[selected_mask, :, :], axis=0) for x in p_yett_store]
     mse_t, re_t = get_mse_re(yt, p_yt_selected_mean)
     mse_v, re_v = get_mse_re(yv, p_yv_selected_mean)
     mse_tt, re_tt = get_mse_re(ytt, p_ytt_selected_mean)
     mse_re_ett_store = [get_mse_re(yett, p_yett) for yett, p_yett in zip(yett_store, p_yett_store_selected_mean)]
     var_ett = []
+    if unseen_missing:
+        idx_store = [1, 1, 1, 5, 5, 5, 10, 10, 10, 30, 30, 30, 50, 50, 50]
+    else:
+        idx_store = [1, 1, 1, 5, 5, 5, 10, 10, 10, 30, 30, 30, 50, 50, 50, 0, 1, 5, 10]
+        mse_uns, re_uns = get_mse_re(yuns, p_yuns_selected_mean)
     for idx, (invariant, p_y) in enumerate(
-            zip([1, 1, 1, 5, 5, 5, 10, 10, 10, 30, 30, 30, 50, 50, 50, 0, 1, 5, 10], p_yett_store_selected_mean)):
+            zip(idx_store, p_yett_store_selected_mean)):
         if invariant == 0:
             var_ett.append(0)
         else:
@@ -188,7 +216,7 @@ def ga_train_val_eval_on_test(results_dir, data_store, hparams):
             #                            p_y[base_numel + invariant * i:base_numel + invariant * i + invariant, :]), axis=0).shape))
 
 
-    mse_uns, re_uns = get_mse_re(yuns, p_yuns_selected_mean)
+
 
     def print_results(name, y, p_y, mse, re):
         nonlocal wb, ws
@@ -205,16 +233,24 @@ def ga_train_val_eval_on_test(results_dir, data_store, hparams):
     print_results('Training', yt, p_yt_selected_mean, mse_t, re_t)
     print_results('Val', yv, p_yv_selected_mean, mse_v, re_v)
     print_results('Test', ytt, p_ytt_selected_mean, mse_tt, re_tt)
-    print_results('Unseen', yuns, p_yuns_selected_mean, mse_uns, re_uns)
+    if not unseen_missing:
+        print_results('Unseen', yuns, p_yuns_selected_mean, mse_uns, re_uns)
+        df = pd.DataFrame(data=[[mse_t, mse_v, mse_tt, mse_uns] + [x[0] for x in mse_re_ett_store],
+                                [re_t, re_v, re_tt, re_uns] + [x[1] for x in mse_re_ett_store],
+                                [0, 0, 0, 0] + var_ett],
+                          columns=['Training', 'Val', 'Test', 'Unseen'] + ett_names,
+                          index=['MSE', 'HE', 'Var'])
+    else:
+        df = pd.DataFrame(data=[[mse_t, mse_v, mse_tt] + [x[0] for x in mse_re_ett_store],
+                                [re_t, re_v, re_tt] + [x[1] for x in mse_re_ett_store],
+                                [0, 0, 0, 0] + var_ett],
+                          columns=['Training', 'Val', 'Test', 'Unseen'] + ett_names,
+                          index=['MSE', 'HE', 'Var'])
     [print_results(name, yett_store[idx], p_yett_store_selected_mean[idx], mse_re[0], mse_re[1]) for name, idx, mse_re
      in zip(ett_names, range(len(data_store[0][10])), mse_re_ett_store)]
 
     ws = wb[sheetname]
-    df = pd.DataFrame(data=[[mse_t, mse_v, mse_tt, mse_uns] + [x[0] for x in mse_re_ett_store],
-                            [re_t, re_v, re_tt, re_uns] + [x[1] for x in mse_re_ett_store],
-                            [0,0,0,0] + var_ett],
-                      columns=['Training', 'Val', 'Test', 'Unseen'] + ett_names,
-                      index=['MSE', 'HE', 'Var'])
+
     print_df_to_excel(df=df, ws=ws, start_row=5)
 
     wb.save(excel_name)

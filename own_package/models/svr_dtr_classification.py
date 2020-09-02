@@ -14,7 +14,8 @@ import pycm
 
 class Predict_SVC_DTC:
     def __init__(self, model):
-        self.model = model
+        self.model1 = model
+        self.model = self.model1
 
     def predict(self, features):
         # Make sure features are normalized if the model uses features_c_norm and vice versa

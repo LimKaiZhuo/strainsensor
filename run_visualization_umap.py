@@ -36,10 +36,10 @@ def selector(case):
                                     'un125Train MRE',
                                     ])
     elif case == 5:
-        plot_un_hparam_rounds(write_dir='./Plots', excel_dir='./results/active learning round error.xlsx')
+        plot_un_hparam_rounds(write_dir='./Plots', excel_dir='./results/new_summary - 30.xlsx')
     elif case == 6:
         plot_var(excel_dir='./Round 13 GA Combination Summary.xlsx', combi_names=['Round 13','NDA', 'NDA+I', 'NDA+S'])
 
-selector(6)
+selector(5)
 
 
