@@ -34,16 +34,16 @@ def selector(case, **kwargs):
         write_dir = create_results_directory('./results/hparams_opt round {} conv1'.format(round),
                                              folders=['plots', 'models', 'learning rate plots'],
                                              excels=['skf_results', 'hparam_results'])
-        fl = load_data_to_fl(loader_excel, normalise_labels=False,
+        fl = load_data_to_fl(loader_excel, normalise_labels=True,
                              label_type='gf20',
-                             norm_mask=[0, 1, 3, 4, 5])
+                             norm_mask=None) #[0, 1, 3, 4, 5])
         if smote_numel:
             fl_store = fl.fold_smote_kf_augment(numel=smote_numel, k_folds=10, shuffle=True)
         elif smote_excel:
             fl_store = fl.smote_kf_augment(smote_excel=smote_excel, k_folds=10, shuffle=True)
         else:
             fl_store = fl.create_kf(k_folds=10, shuffle=True)
-        hparam_opt(model_mode='conv1', loss_mode='ann', fl_in=fl, fl_store_in=fl_store,
+        hparam_opt(model_mode='ann3', loss_mode='ann', fl_in=fl, fl_store_in=fl_store,
                    norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
                    total_run=50, instance_per_run=1, write_dir=write_dir,
                    save_model=save_model, save_model_dir=write_dir + '/models/',
@@ -286,7 +286,7 @@ ett_store = ['./excel/ett_30testset_cut Invariant 1.xlsx',
 #         test_excel_dir='./excel/ett_30testset_cut.xlsx',
 #         ett_store=ett_store)
 for i in [1]:
-    selector(case=1, round=i, loader_excel='./excel/Data_loader_spline_full_onehot_R{}.xlsx'.format(i), save_model=True,
+    selector(case=1, round=i, loader_excel='./excel/Data_loader_spline_full_onehot_R{}test.xlsx'.format(i), save_model=True,
              smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant', model_mode='conv1',
              results_name='conv1_round_{}'.format(i),
              test_excel_dir='./excel/ett_30testset_cut.xlsx',
