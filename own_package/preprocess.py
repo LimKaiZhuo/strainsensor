@@ -12,7 +12,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 from scipy.optimize import curve_fit
 from scipy.integrate import simps, trapz
-from scipy.interpolate import CubicSpline, UnivariateSpline, PchipInterpolator
+from scipy.interpolate import CubicSpline, UnivariateSpline, PchipInterpolator, interp1d
 from own_package.features_labels_setup import Features_labels_grid
 
 
@@ -300,12 +300,21 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
     cutoff_store = []
     cutoff_store2 = []  # second method to do cutoff
     plot_store = []
+    gf20_store = []
     for strain, r in zip(strain_store, r_store):
         eval_x = np.linspace(0, strain[-1], num=discrete_points)  # To evaluate spline at
         eval_x_plot = np.linspace(0, strain[-1], num=100)  # For plotting
 
         if spline_selector == 1:
             spline = PchipInterpolator(strain, r)
+            linear_spline = interp1d(strain, r)
+            # Getting GF for 20 points
+            gf = np.concatenate(
+                (
+                    (linear_spline.__call__(eval_x[:-1]+0.01)-linear_spline.__call__(eval_x[:-1]))*100/0.01,
+                                [(linear_spline.__call__(eval_x[-1])-linear_spline.__call__(eval_x[-1]-0.01))*100/0.01]
+                )
+            )
             # Store the processed labels. Labels for one example is 1d ndarray of
             # [End_point of strain curve, r1, r2, r3, ... , r_end]
             y_discrete = spline.__call__(eval_x)
@@ -323,6 +332,7 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
             cutoff_store.append([cutoff_one, cutoff_two, strain[-1]])
             summary_store.append(np.concatenate([[strain[-1]], y_discrete]))
             plot_store.append([eval_x_plot, spline.__call__(eval_x_plot)])
+            gf20_store.append(gf)
         elif spline_selector == 2:
             # NOT IN USE
             # csaps implementation
@@ -379,6 +389,21 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
     columns[0] = 'END'
     header = list(header)
     df_write = pd.DataFrame(summary_store, index=header, columns=columns)
+
+    rows = dataframe_to_rows(df_write)
+    for r_idx, row in enumerate(rows, 1):
+        for c_idx, value in enumerate(row, 1):
+            ws.cell(row=r_idx + 1, column=c_idx, value=value)
+
+    excel_name = write_dir + '/results.xlsx'
+    wb = openpyxl.Workbook()
+    wb.create_sheet('gf20')
+    ws = wb['gf20']
+
+    header = np.array(range(np.shape(strain_store)[0])) + 1  # Index to label Exp 1, 2, 3, ...
+    columns = list(range(1,1+discrete_points))
+    header = list(header)
+    df_write = pd.DataFrame(gf20_store, index=header, columns=columns)
 
     rows = dataframe_to_rows(df_write)
     for r_idx, row in enumerate(rows, 1):

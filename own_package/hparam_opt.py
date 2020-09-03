@@ -154,7 +154,7 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
 
     elif model_mode == 'conv1':
         start_time = time.time()
-        bounds = [[50, 400, ],
+        bounds = [[1, 400, ],
                   [1, 50, ],
                   [100, 600]]
 
