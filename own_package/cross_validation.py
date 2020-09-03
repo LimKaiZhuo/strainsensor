@@ -174,7 +174,7 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
                              np.array(predicted_labels_store))
                             , axis=1)
     if fl.label_type == 'points':
-        predicted_labels_name = list(map(str, np.arange(2,101)))
+        predicted_labels_name = list(map(str, np.arange(2,21)))
         predicted_labels_name = ['P_' + x for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
@@ -186,6 +186,13 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
                   list(fl.labels_names) + \
+                  predicted_labels_name
+    elif fl.label_type == 'gf20':
+        predicted_labels_name = list(map(str, np.arange(1,21)))
+        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        headers = ['folds'] + \
+                  list(map(str, fl.features_c_names)) + \
+                  list(map(str, np.arange(2,101))) + \
                   predicted_labels_name
 
     # val_idx is the original position of the example in the data_loader

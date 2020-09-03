@@ -35,7 +35,7 @@ def selector(case, **kwargs):
                                              folders=['plots', 'models', 'learning rate plots'],
                                              excels=['skf_results', 'hparam_results'])
         fl = load_data_to_fl(loader_excel, normalise_labels=False,
-                             label_type='cutoff',
+                             label_type='gf20',
                              norm_mask=[0, 1, 3, 4, 5])
         if smote_numel:
             fl_store = fl.fold_smote_kf_augment(numel=smote_numel, k_folds=10, shuffle=True)
