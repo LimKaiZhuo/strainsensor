@@ -169,7 +169,7 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
             global run_count, data_store, fl, fl_store
             run_count += 1
             hparams = create_hparams(pre=pre, filters=filters, epochs=epochs,
-                                     reg_l1=0.05, reg_l2=0.05, learning_rate=0.05,
+                                     reg_l1=0.05, reg_l2=0.05, learning_rate=0.05, loss='mse',
                                      verbose=0)
 
             mse_avg = 0
@@ -215,7 +215,7 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
         def fitness(pre, epochs):
             global run_count, data_store, fl, fl_store
             run_count += 1
-            hparams = create_hparams(pre=pre, epochs=epochs,
+            hparams = create_hparams(pre=pre, epochs=epochs,loss='mse',
                                      reg_l1=0.05, reg_l2=0.05,
                                      verbose=0)
 

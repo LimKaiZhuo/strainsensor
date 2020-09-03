@@ -178,7 +178,7 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
         predicted_labels_name = ['P_' + x for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
-                  list(map(str, np.arange(2,101))) + \
+                  list(map(str, np.arange(2,21))) + \
                   predicted_labels_name
     elif fl.label_type == 'cutoff':
         predicted_labels_name = list(fl.labels_names)
