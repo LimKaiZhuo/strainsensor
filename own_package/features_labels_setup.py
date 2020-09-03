@@ -107,7 +107,8 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
         features_c = np.delete(features_c, remove_idx, axis=0)
     elif label_type == 'gf20':
         labels = df_labels.values
-        labels_end = None
+        labels_end = labels[:,0][:,None]  # Make 2D array
+        labels = labels[:,1:]
         labels_names = df_labels.columns.values
     else:
         raise KeyError('label_type {} not recognised'.format(label_type))

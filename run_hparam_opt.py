@@ -34,7 +34,7 @@ def selector(case, **kwargs):
         write_dir = create_results_directory('./results/hparams_opt round {} SVR'.format(round),
                                              folders=['plots', 'models', 'learning rate plots'],
                                              excels=['skf_results', 'hparam_results'])
-        fl = load_data_to_fl(loader_excel, normalise_labels=True,
+        fl = load_data_to_fl(loader_excel, normalise_labels=False,
                              label_type='cutoff',
                              norm_mask=[0, 1, 3, 4, 5])
         if smote_numel:
