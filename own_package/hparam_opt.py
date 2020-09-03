@@ -156,20 +156,20 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
         start_time = time.time()
         bounds = [[1, 400, ],
                   [1, 50, ],
-                  [100, 600]]
+                  [100, 2000]]
 
         pre = Integer(low=bounds[0][0], high=bounds[0][1], name='pre')
         filters = Integer(low=bounds[1][0], high=bounds[1][1], name='filters')
         epochs = Integer(low=bounds[2][0], high=bounds[2][1], name='epochs')
         dimensions = [pre, filters, epochs]
-        default_parameters = [70, 1, 500]
+        default_parameters = [70, 5, 1000]
 
         @use_named_args(dimensions=dimensions)
         def fitness(pre, filters, epochs):
             global run_count, data_store, fl, fl_store
             run_count += 1
             hparams = create_hparams(pre=pre, filters=filters, epochs=epochs,
-                                     reg_l1=0.05, reg_l2=0.05,
+                                     reg_l1=0.05, reg_l2=0.05, learning_rate=0.05,
                                      verbose=0)
 
             mse_avg = 0
