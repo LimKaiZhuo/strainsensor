@@ -220,6 +220,10 @@ class Kmodel:
 
             self.model = Model(inputs=features_in, outputs=x)
         elif mode=='conv1':
+            if fl.label_type == 'gf20':
+                final_dim = 20
+            else:
+                final_dim = 19
             x = Dense(units=hparams['pre'],
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
@@ -229,13 +233,13 @@ class Kmodel:
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Pre_' + str(1))(x)
             #x = BatchNormalization()(x)
-            x = Dense(units=19,
+            x = Dense(units=final_dim,
                       activation=hparams['activation'],
                       kernel_regularizer=regularizers.l1_l2(l1=hparams['reg_l1'], l2=hparams['reg_l2']),
                       name='Pre_set_19')(x)
             #x = BatchNormalization()(x)
 
-            x = Reshape(target_shape=(19, 1))(x)
+            x = Reshape(target_shape=(final_dim, 1))(x)
             x = Conv1D(filters=hparams['filters'], kernel_size=3, strides=1, padding='same', activation='relu')(x)
             #x = BatchNormalization()(x)
             x = Conv1D(filters=hparams['filters']*2, kernel_size=3, strides=1, padding='same', activation='relu')(x)
@@ -243,7 +247,7 @@ class Kmodel:
             #x = Permute((2,1))(x)
             #x = GlobalAveragePooling1D()(x)
             x = TimeDistributed(Dense(1, activation='linear'))(x)
-            x = Reshape(target_shape=(19,))(x)
+            x = Reshape(target_shape=(final_dim,))(x)
 
 
             self.model = Model(inputs=features_in, outputs=x)

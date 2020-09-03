@@ -52,9 +52,9 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
             sess = tf.compat.v1.Session()
             # sess = tf.Session()
             K.set_session(sess)
-            model = MTmodel(fl=ss_fl, mode=model_mode, hparams=hparams, labels_norm=labels_norm)
+            model = MTmodel(fl=ss_fl, mode=model_mode, hparams=hparams)
         elif loss_mode == 'hul':
-            model = HULMTmodel(fl=ss_fl, mode=model_mode, hparams=hparams, labels_norm=labels_norm)
+            model = HULMTmodel(fl=ss_fl, mode=model_mode, hparams=hparams)
             print('HUL Standard Deviation Values:')
             print([np.exp(K.get_value(log_var[0])) ** 0.5 for log_var in model.model.layers[-1].log_vars])
         elif loss_mode == 'ann':

@@ -31,7 +31,7 @@ def selector(case, **kwargs):
                    save_model=save_model, save_model_dir=write_dir + '/models/',
                    plot_dir=None)
         '''
-        write_dir = create_results_directory('./results/hparams_opt round {} SVR'.format(round),
+        write_dir = create_results_directory('./results/hparams_opt round {} conv1'.format(round),
                                              folders=['plots', 'models', 'learning rate plots'],
                                              excels=['skf_results', 'hparam_results'])
         fl = load_data_to_fl(loader_excel, normalise_labels=False,
@@ -43,7 +43,7 @@ def selector(case, **kwargs):
             fl_store = fl.smote_kf_augment(smote_excel=smote_excel, k_folds=10, shuffle=True)
         else:
             fl_store = fl.create_kf(k_folds=10, shuffle=True)
-        hparam_opt(model_mode='conv1', loss_mode='normal', fl_in=fl, fl_store_in=fl_store,
+        hparam_opt(model_mode='conv1', loss_mode='ann', fl_in=fl, fl_store_in=fl_store,
                    norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
                    total_run=50, instance_per_run=1, write_dir=write_dir,
                    save_model=save_model, save_model_dir=write_dir + '/models/',
