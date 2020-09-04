@@ -178,6 +178,70 @@ class DTRmodel:
 class XGBmodel:
     def __init__(self, fl, hparams):
         """
+        Initialises new DNN model based on input features_dim, labels_dim, hparams
+        :param features_dim: Number of input feature nodes. Integer
+        :param labels_dim: Number of output label nodes. Integer
+        :param hparams: Dict containing hyperparameter information. Dict can be created using create_hparams() function.
+        hparams includes: hidden_layers: List containing number of nodes in each hidden layer. [10, 20] means 10 then 20 nodes.
+        """
+        self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
+        self.labels_scaler = fl.labels_scaler
+        default_hparams = {'seed': 42,
+                           'booster': 'gbtree',
+                           'learning_rate': 0.1,
+                           'objective': 'reg:squarederror',
+                           'verbosity': 0,
+                           'subsample': 1,
+                           'num_boost_round': 600,
+                           'early_stopping_rounds': 100,
+                           # params that will vary
+                           'm': 6,
+                           'p': 12,
+                           'max_depth': 1,
+                           'colsample_bytree': 0.5,
+                           }
+        self.hparams = {**default_hparams, **hparams}
+        self.model = MultiOutputRegressor(
+            xgb.XGBRegressor(objective=self.hparams['objective'],
+                             n_estimators=self.hparams['num_boost_rounds'],
+                             max_depth=self.hparams['max_depth'],
+                             booster=self.hparams['booster'],
+                             gamma=self.hparams['gamma'],
+                             subsample=self.hparams['subsample'],
+                             random_state=self.hparams['seed'],))
+        self.normalise_labels = fl.normalise_labels
+
+    def train_model(self, fl, save_mode=False, plot_name=None):
+        training_features = fl.features_c_norm
+        if self.normalise_labels:
+            training_labels = fl.labels_norm
+        else:
+            training_labels = fl.labels
+
+        self.model.fit(training_features, training_labels, early_stopping_rounds=self.hparams['early_stopping_rounds'])
+
+        return self.model
+
+    def eval(self, eval_fl):
+        features = eval_fl.features_c_norm
+        if self.labels_dim == 1:
+            y_pred = self.model.predict(features)[:, None]
+        else:
+            y_pred = self.model.predict(features)
+        if self.normalise_labels:
+            mse_norm = mean_squared_error(eval_fl.labels_norm, y_pred)
+            mse = mean_squared_error(eval_fl.labels, self.labels_scaler.inverse_transform(y_pred))
+        else:
+            mse_norm = -1
+            mse = mean_squared_error(eval_fl.labels, y_pred)
+
+        return y_pred, mse, mse_norm
+
+
+'''
+class XGBmodel:
+    def __init__(self, fl, hparams):
+        """
         """
         self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
         self.labels_scaler = fl.labels_scaler
@@ -231,6 +295,7 @@ class XGBmodel:
             mse = mean_squared_error(eval_fl.labels, y_pred)
 
         return y_pred, mse, mse_norm
+'''
 
 
 class Predict_SVR_DTR:
@@ -240,6 +305,7 @@ class Predict_SVR_DTR:
         self.xgb = xgb
 
     def predict(self, features):
+        '''
         if self.xgb:
             features = xgb.DMatrix(features)
             try:
@@ -254,6 +320,12 @@ class Predict_SVR_DTR:
             except:
                 y_pred = self.model.predict(features)
             return y_pred
+        '''
+        try:
+            y_pred = self.labels_scaler.inverse_transform(self.model.predict(features))
+        except:
+            y_pred = self.model.predict(features)
+        return y_pred
 
 
 class MIMOSVRmodel:
