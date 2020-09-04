@@ -218,7 +218,7 @@ class XGBmodel:
         return self.model
 
     def eval(self, eval_fl):
-        features = eval_fl.features_c_norm
+        features = xgb.DMatrix(eval_fl.features_c_norm)
         if self.labels_dim == 1:
             y_pred = self.model.predict(features)[:, None]
         else:
