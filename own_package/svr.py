@@ -10,6 +10,7 @@ from pandas import Series
 import openpyxl
 from openpyxl import load_workbook
 import matplotlib.pyplot as plt
+import xgboost as xgb
 
 from tensorflow.python.keras.models import Sequential, Model
 from tensorflow.python.keras.layers import Dense, Dropout, merge, Input, concatenate, Reshape, Permute, LSTM, \
@@ -143,7 +144,8 @@ class DTRmodel:
         """
         self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
         self.labels_scaler = fl.labels_scaler
-        self.model = MultiOutputRegressor(AdaBoostRegressor(DecisionTreeRegressor(max_depth=max_depth),n_estimators=num_est))
+        self.model = MultiOutputRegressor(
+            AdaBoostRegressor(DecisionTreeRegressor(max_depth=max_depth), n_estimators=num_est))
         self.normalise_labels = fl.normalise_labels
 
     def train_model(self, fl, save_mode=False, plot_name=None):
@@ -170,21 +172,88 @@ class DTRmodel:
             mse_norm = -1
             mse = mean_squared_error(eval_fl.labels, y_pred)
 
+        return y_pred, mse, mse_norm
+
+
+class XGBmodel:
+    def __init__(self, fl, hparams):
+        """
+        """
+        self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
+        self.labels_scaler = fl.labels_scaler
+        self.normalise_labels = fl.normalise_labels
+        default_hparams = {'seed': 42,
+                           'booster': 'gbtree',
+                           'learning_rate': 0.1,
+                           'objective': 'reg:squarederror',
+                           'verbosity': 0,
+                           'subsample': 1,
+                           'num_boost_round': 600,
+                           'early_stopping_rounds': 100,
+                           # params that will vary
+                           'm': 6,
+                           'p': 12,
+                           'max_depth': 1,
+                           'colsample_bytree': 0.5,
+                           }
+        self.hparams = {**default_hparams,**hparams}
+
+    def train_model(self, fl, i_fl, **kwargs):
+        training_features = fl.features_c_norm
+        val_features = i_fl.features_c_norm
+        if self.normalise_labels:
+            training_labels = fl.labels_norm
+            val_labels = i_fl.labels_norm
+        else:
+            training_labels = fl.labels
+            val_labels = i_fl.labels
+
+        dtrain = xgb.DMatrix(training_features, label=training_labels)
+        deval = xgb.DMatrix(data=val_features, label=val_labels)
+        self.model = xgb.train(self.hparams, dtrain=dtrain, num_boost_round=self.hparams['num_boost_round'],
+                               early_stopping_rounds=self.hparams['early_stopping_rounds'],
+                               evals=[(dtrain, 'train'), (deval, 'val')],
+                               verbose_eval=False)
+
+        return self.model
+
+    def eval(self, eval_fl):
+        features = eval_fl.features_c_norm
+        if self.labels_dim == 1:
+            y_pred = self.model.predict(features)[:, None]
+        else:
+            y_pred = self.model.predict(features)
+        if self.normalise_labels:
+            mse_norm = mean_squared_error(eval_fl.labels_norm, y_pred)
+            mse = mean_squared_error(eval_fl.labels, self.labels_scaler.inverse_transform(y_pred))
+        else:
+            mse_norm = -1
+            mse = mean_squared_error(eval_fl.labels, y_pred)
 
         return y_pred, mse, mse_norm
 
 
 class Predict_SVR_DTR:
-    def __init__(self, model, labels_scaler):
+    def __init__(self, model, labels_scaler, xgb=False):
         self.model = model
         self.labels_scaler = labels_scaler
+        self.xgb = xgb
 
     def predict(self, features):
-        try:
-            y_pred = self.labels_scaler.inverse_transform(self.model.predict(features))
-        except:
-            y_pred = self.model.predict(features)
-        return y_pred
+        if self.xgb:
+            features = xgb.DMatrix(features)
+            try:
+                y_pred = self.labels_scaler.inverse_transform(
+                    self.model.predict(features, ntree_limit=self.model.best_ntree_limit))
+            except:
+                y_pred = self.model.predict(features, ntree_limit=self.model.best_ntree_limit)
+            return y_pred
+        else:
+            try:
+                y_pred = self.labels_scaler.inverse_transform(self.model.predict(features))
+            except:
+                y_pred = self.model.predict(features)
+            return y_pred
 
 
 class MIMOSVRmodel:

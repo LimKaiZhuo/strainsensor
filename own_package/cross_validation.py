@@ -11,7 +11,7 @@ import time, os, pickle
 
 # Own Scripts
 from own_package.models.models import MTmodel, Kmodel, Pmodel
-from own_package.svr import SVRmodel, MIMOSVRmodel, DTRmodel, Predict_SVR_DTR
+from own_package.svr import SVRmodel, MIMOSVRmodel, DTRmodel, Predict_SVR_DTR, XGBmodel
 from own_package.active_learning.acquisition import model_ensemble_prediction
 from .others import print_array_to_excel, print_df_to_excel
 
@@ -592,6 +592,8 @@ def run_skf_train_val_test_error(model_mode, loss_mode, fl, fl_store, test_fl, e
             #if not fl.normalise_labels:
                 #raise TypeError('fl labels are not normalised. For SVR, the labels must be normalised.')
             model = DTRmodel(fl=ss_fl, max_depth=hparams['max_depth'], num_est=hparams['num_est'])
+        elif loss_mode == 'xgb':
+            model = XGBmodel(fl=ss_fl,  hparams=hparams)
         else:
             raise KeyError('loss_mode ' + loss_mode + 'is not a valid selection for loss mode.')
 

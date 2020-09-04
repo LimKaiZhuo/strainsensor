@@ -215,7 +215,7 @@ def hparam_opt(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, write_dir, 
         def fitness(pre, epochs):
             global run_count, data_store, fl, fl_store
             run_count += 1
-            hparams = create_hparams(pre=pre, epochs=epochs,loss='mse',
+            hparams = create_hparams(pre=pre, epochs=epochs, loss='mse',
                                      reg_l1=0.05, reg_l2=0.05,
                                      verbose=0)
 
@@ -744,11 +744,12 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
         default_parameters = [300, 500]
         data_store_count = 1
         data_store_name = 0
+
         @use_named_args(dimensions=dimensions)
         def fitness(pre, epochs):
             global run_count, data_store, fl, fl_store, data_store, data_store_count, data_store_name
             run_count += 1
-            hparams = create_hparams(pre=pre, epochs=epochs, loss='mse', learning_rate=0.001/2,
+            hparams = create_hparams(pre=pre, epochs=epochs, loss='mse', learning_rate=0.001 / 2,
                                      reg_l1=0.0005, reg_l2=0,
                                      verbose=0)
 
@@ -770,15 +771,15 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
                                                                         save_model=save_model,
                                                                         save_model_dir=save_model_dir,
                                                                         plot_name=plot_name)
-            if (data_store_count-1)%5 == 0:
+            if (data_store_count - 1) % 5 == 0:
                 data_store = []
                 data_store_name += 5
             data.append([pre, epochs])
             data_store.append(data)
-            with open('{}_{}.pkl'.format(data_store_dir,data_store_name), "wb") as file:
+            with open('{}_{}.pkl'.format(data_store_dir, data_store_name), "wb") as file:
                 pickle.dump(data_store, file)
             data_store_count += 1
-            loss = (val_score*2 + train_score) /3
+            loss = (val_score * 2 + train_score) / 3
             end_time = time.time()
             print('**************************************************************************************************\n'
                   'Run Number {} \n'
@@ -799,6 +800,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
         default_parameters = [3, 300]
         data_store_count = 1
         data_store_name = 0
+
         @use_named_args(dimensions=dimensions)
         def fitness(depth, num_est):
             global run_count, data_store, fl, fl_store, data_store_count, data_store_name
@@ -806,7 +808,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
             hparams = create_hparams(max_depth=depth, num_est=num_est)
 
             if plot_dir:
-                plot_name = '{}/{}_{}_run_{}_count_{}'.format(plot_dir, model_mode, loss_mode, run_count, cnt)
+                plot_name = '{}/{}_{}_run_{}'.format(plot_dir, model_mode, loss_mode, run_count)
             else:
                 plot_name = None
             val_score, train_score, data = run_skf_train_val_test_error(model_mode=model_mode, loss_mode=loss_mode,
@@ -824,17 +826,17 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
                                                                         save_model_dir=save_model_dir,
                                                                         plot_name=plot_name)
 
-            #loss = (val_score + train_score) / 2
+            # loss = (val_score + train_score) / 2
             loss = val_score
-            if (data_store_count-1)%5 == 0:
+            if (data_store_count - 1) % 5 == 0:
                 data_store = []
                 data_store_name += 5
             data.append([depth, num_est])
             data_store.append(data)
-            with open('{}_{}.pkl'.format(data_store_dir,data_store_name), "wb") as file:
+            with open('{}_{}.pkl'.format(data_store_dir, data_store_name), "wb") as file:
                 pickle.dump(data_store, file)
 
-            data_store_count +=1
+            data_store_count += 1
             end_time = time.time()
             print('**************************************************************************************************\n'
                   'Run Number {} \n'
@@ -844,6 +846,70 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
                   'Time Taken: {}\n'
                   '*********************************************************************************************'.format(
                 run_count, depth, num_est, instance_per_run, scoring, loss, end_time - start_time))
+            return loss
+    elif model_mode == 'xgb':
+        start_time = time.time()
+        hparam_opt_params = {'max_depth': {'type': 'Integer', 'lower': 1, 'upper': 6},
+                             'subsample': {'type': 'Real', 'lower': 0.5, 'upper': 1},
+                             'gamma': {'type': 'Real', 'lower': 0, 'upper': 5}
+                             }
+        space = []
+        for k, v in hparam_opt_params.items():
+            if v['type'] == 'Real':
+                space.append(Real(v['lower'], v['upper'], name=k))
+            elif v['type'] == 'Integer':
+                space.append(Integer(v['lower'], v['upper'], name=k))
+            else:
+                raise TypeError('hparam opt bounds variable type must be Real or Integer only.')
+
+        default_parameters = [3, 0.5, 0.1]
+        data_store_count = 1
+        data_store_name = 0
+
+        @use_named_args(dimensions=space)
+        def fitness(**params):
+            global run_count, data_store, fl, fl_store, data_store_count, data_store_name
+            run_count += 1
+            hparams = params
+
+            if plot_dir:
+                plot_name = '{}/{}_{}_run_{}'.format(plot_dir, model_mode, loss_mode, run_count)
+            else:
+                plot_name = None
+            val_score, train_score, data = run_skf_train_val_test_error(model_mode=model_mode, loss_mode=loss_mode,
+                                                                        fl=fl,
+                                                                        fl_store=fl_store, test_fl=test_fl,
+                                                                        ett_fl_store=ett_fl_store,
+                                                                        model_name='{}_{}_{}'.format(write_dir,
+                                                                                                     model_mode,
+                                                                                                     run_count),
+                                                                        hparams=hparams,
+                                                                        k_folds=10, scoring=scoring,
+                                                                        save_model_name='hparam_' + str(
+                                                                            run_count) + '_',
+                                                                        save_model=save_model,
+                                                                        save_model_dir=save_model_dir,
+                                                                        plot_name=plot_name)
+
+            # loss = (val_score + train_score) / 2
+            loss = val_score
+            if (data_store_count - 1) % 5 == 0:
+                data_store = []
+                data_store_name += 5
+            data.append([depth, num_est])
+            data_store.append(data)
+            with open('{}_{}.pkl'.format(data_store_dir, data_store_name), "wb") as file:
+                pickle.dump(data_store, file)
+
+            data_store_count += 1
+            end_time = time.time()
+            print(f'**************************************************************************************************\n'
+                  f'Run Number {run_count} \n'
+                  f'{params}\n'
+                  f'Instance per run {instance_per_run} \n'
+                  f'Current run {scoring} {loss} \n'
+                  f'Time Taken: {end_time - start_time}\n'
+                  '*********************************************************************************************')
             return loss
     elif model_mode == 'svr':
         start_time = time.time()
@@ -922,7 +988,8 @@ def read_hparam_data(data_store, write_dir, ett_names, print_s_df, trainset_ett_
         st_df_wb = openpyxl.load_workbook(st_df_excel)
         stt_df_excel = create_excel_file(write_dir + '/stt_df.xlsx')
         stt_df_wb = openpyxl.load_workbook(stt_df_excel)
-        sett_df_excel_store = [create_excel_file('{}/sett_df_{}.xlsx'.format(write_dir, ett_name)) for ett_name in ett_names]
+        sett_df_excel_store = [create_excel_file('{}/sett_df_{}.xlsx'.format(write_dir, ett_name)) for ett_name in
+                               ett_names]
         sett_df_wb_store = [openpyxl.load_workbook(ett_df_excel) for ett_df_excel in sett_df_excel_store]
 
     solo_summary_excel = create_excel_file(write_dir + '/solo_summary.xlsx')
@@ -930,7 +997,7 @@ def read_hparam_data(data_store, write_dir, ett_names, print_s_df, trainset_ett_
     ws = solo_summary_wb['Sheet']
     print_array_to_excel(
         array=['Trial', 'Fold', 'name', 'Train MSE', 'Train MRE', 'Test MSE', 'Test MRE'] \
-               + [x+'_MSE' for x in ett_names] + [x+'_MRE' for x in ett_names] + ['hparam1', 'hparam2'],
+              + [x + '_MSE' for x in ett_names] + [x + '_MRE' for x in ett_names] + ['hparam1', 'hparam2'],
         first_cell=(1, 1), ws=ws, axis=1)
     solo_row = 2
     ot_df_excel = create_excel_file(write_dir + '/ot_df.xlsx')
@@ -939,7 +1006,8 @@ def read_hparam_data(data_store, write_dir, ett_names, print_s_df, trainset_ett_
     ov_df_wb = openpyxl.load_workbook(ov_df_excel)
     ott_df_excel = create_excel_file(write_dir + '/ott_df.xlsx')
     ott_df_wb = openpyxl.load_workbook(ott_df_excel)
-    oett_df_excel_store = [create_excel_file('{}/oett_df_{}.xlsx'.format(write_dir, ett_name)) for ett_name in ett_names]
+    oett_df_excel_store = [create_excel_file('{}/oett_df_{}.xlsx'.format(write_dir, ett_name)) for ett_name in
+                           ett_names]
     oett_df_wb_store = [openpyxl.load_workbook(ett_df_excel) for ett_df_excel in oett_df_excel_store]
     overall_summary_excel = create_excel_file(write_dir + '/overall_summary.xlsx')
     overall_summary_wb = openpyxl.load_workbook(overall_summary_excel)
@@ -947,8 +1015,8 @@ def read_hparam_data(data_store, write_dir, ett_names, print_s_df, trainset_ett_
     if trainset_ett_idx:
         print_array_to_excel(
             array=['Trial', 'name', 'Train MSE', 'Train MRE', 'Val MSE', 'Val MRE', 'Test MSE', 'Test MRE',
-                   'un125Train MSE', 'un125Train MRE']\
-                  + [x+'_MSE' for x in ett_names] + [x+'_MRE' for x in ett_names] + ['hparam1', 'hparam2'],
+                   'un125Train MSE', 'un125Train MRE'] \
+                  + [x + '_MSE' for x in ett_names] + [x + '_MRE' for x in ett_names] + ['hparam1', 'hparam2'],
             first_cell=(1, 1), ws=ws, axis=1)
     else:
         print_array_to_excel(
@@ -960,10 +1028,11 @@ def read_hparam_data(data_store, write_dir, ett_names, print_s_df, trainset_ett_
     for trial, data in enumerate(data_store):
         fold_numel = len(data[0][0])
         if print_s_df:
-            for fold, (name, st_df, stt_df, sett_df_store) in enumerate(zip(*([data[0][0]] + [data[i] for i in [2, 3, 9]]))):
+            for fold, (name, st_df, stt_df, sett_df_store) in enumerate(
+                    zip(*([data[0][0]] + [data[i] for i in [2, 3, 9]]))):
                 # Loop 10 times for 10CV
                 name = name.partition('hparams_opt')[-1]
-                if len(name)>30:
+                if len(name) > 30:
                     name = name[-30:]
                 st_df_wb.create_sheet(name)
                 ws = st_df_wb[name]
@@ -978,8 +1047,8 @@ def read_hparam_data(data_store, write_dir, ett_names, print_s_df, trainset_ett_
                     print_df_to_excel(df=sett_df, ws=ws)
 
         ws = solo_summary_wb['Sheet']
-        trial_name = [trial]*fold_numel
-        fold_name = list(range(1,fold_numel+1))
+        trial_name = [trial] * fold_numel
+        fold_name = list(range(1, fold_numel + 1))
         print_array_to_excel(array=trial_name, first_cell=(solo_row, 1), ws=ws, axis=0)
         print_array_to_excel(array=fold_name, first_cell=(solo_row, 2), ws=ws, axis=0)
         print_array_to_excel(array=data[0][0], first_cell=(solo_row, 3), ws=ws, axis=0)
@@ -989,15 +1058,18 @@ def read_hparam_data(data_store, write_dir, ett_names, print_s_df, trainset_ett_
         print_array_to_excel(array=data[0][4], first_cell=(solo_row, 7), ws=ws, axis=0)
         sett_mse = [[x[idx] for x in data[7][0]] for idx in range(numel_ett)]
         sett_mre = [[x[idx] for x in data[7][1]] for idx in range(numel_ett)]
-        for mse, mre, col1, col2 in zip(sett_mse, sett_mre, list(range(8,8+numel_ett)), list(range(8+numel_ett, 8+2*numel_ett))):
+        for mse, mre, col1, col2 in zip(sett_mse, sett_mre, list(range(8, 8 + numel_ett)),
+                                        list(range(8 + numel_ett, 8 + 2 * numel_ett))):
             print_array_to_excel(array=mse, first_cell=(solo_row, col1), ws=ws, axis=0)
             print_array_to_excel(array=mre, first_cell=(solo_row, col2), ws=ws, axis=0)
         try:
-            print_array_to_excel(array=[data[-1][0]]*fold_numel, first_cell=(solo_row, 8 + 2*numel_ett), ws=ws, axis=0)
-            print_array_to_excel(array=[data[-1][1]] * fold_numel, first_cell=(solo_row, 9 + 2*numel_ett), ws=ws, axis=0)
+            print_array_to_excel(array=[data[-1][0]] * fold_numel, first_cell=(solo_row, 8 + 2 * numel_ett), ws=ws,
+                                 axis=0)
+            print_array_to_excel(array=[data[-1][1]] * fold_numel, first_cell=(solo_row, 9 + 2 * numel_ett), ws=ws,
+                                 axis=0)
         except IndexError:
             pass
-        solo_row+=fold_numel
+        solo_row += fold_numel
 
         name = data[1][0].partition('hparams_opt')[-1]
 
@@ -1034,21 +1106,20 @@ def read_hparam_data(data_store, write_dir, ett_names, print_s_df, trainset_ett_
         if trainset_ett_idx:
             untrainset_df = data[10][trainset_ett_idx].copy(deep=True)
             ov_df = data[5]
-            untrainset_df.iloc[:ov_df.shape[0],-3:] = ov_df.iloc[:,-3:]
-            y = untrainset_df.iloc[:,:3].values
+            untrainset_df.iloc[:ov_df.shape[0], -3:] = ov_df.iloc[:, -3:]
+            y = untrainset_df.iloc[:, :3].values
             p_y = untrainset_df.iloc[:, -3:].values
-            mse = np.mean((y-p_y)**2)
+            mse = np.mean((y - p_y) ** 2)
             mre = np.mean(np.abs(y - p_y).T / y[:, -1])
             ws.cell(overall_row, col).value = mse
-            ws.cell(overall_row, col+1).value = mre
+            ws.cell(overall_row, col + 1).value = mre
             col += 2
 
-
         print_array_to_excel(array=data[8][0], first_cell=(overall_row, col), ws=ws, axis=1)
-        print_array_to_excel(array=data[8][1], first_cell=(overall_row, col+numel_ett), ws=ws, axis=1)
+        print_array_to_excel(array=data[8][1], first_cell=(overall_row, col + numel_ett), ws=ws, axis=1)
         try:
-            ws.cell(overall_row, col + 2*numel_ett).value = data[-1][0]
-            ws.cell(overall_row, col+1 + 2*numel_ett).value = data[-1][1]
+            ws.cell(overall_row, col + 2 * numel_ett).value = data[-1][0]
+            ws.cell(overall_row, col + 1 + 2 * numel_ett).value = data[-1][1]
         except IndexError:
             pass
         overall_row += 1
