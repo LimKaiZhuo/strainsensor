@@ -853,12 +853,12 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
                              'subsample': {'type': 'Real', 'lower': 0.5, 'upper': 1},
                              'gamma': {'type': 'Real', 'lower': 0, 'upper': 5}
                              }
-        space = []
+        dimensions = []
         for k, v in hparam_opt_params.items():
             if v['type'] == 'Real':
-                space.append(Real(v['lower'], v['upper'], name=k))
+                dimensions.append(Real(v['lower'], v['upper'], name=k))
             elif v['type'] == 'Integer':
-                space.append(Integer(v['lower'], v['upper'], name=k))
+                dimensions.append(Integer(v['lower'], v['upper'], name=k))
             else:
                 raise TypeError('hparam opt bounds variable type must be Real or Integer only.')
 
@@ -866,7 +866,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
         data_store_count = 1
         data_store_name = 0
 
-        @use_named_args(dimensions=space)
+        @use_named_args(dimensions=dimensions)
         def fitness(**params):
             global run_count, data_store, fl, fl_store, data_store_count, data_store_name
             run_count += 1

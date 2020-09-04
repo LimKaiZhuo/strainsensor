@@ -300,7 +300,7 @@ for i in [13]:
     #         ett_store=ett_store)
     selector(case=3.1, round=i, loader_excel='./excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(i), save_model=True,
              smote_numel=None, smote_excel=None, scoring='re', augment_type='invariant', model_mode='xgb',
-             results_name='dtr_deep_I100_round_{}'.format(i),
+             results_name='xgb_deep_I100_round_{}'.format(i),
              test_excel_dir='./excel/ett_30testset_cut.xlsx',
              ett_store=ett_store)
 #for i in [1,2,3,4,5,6,'6e',7,8,9,10,11,12,13]:
