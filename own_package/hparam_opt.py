@@ -850,6 +850,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
     elif model_mode == 'xgb':
         start_time = time.time()
         hparam_opt_params = {'max_depth': {'type': 'Integer', 'lower': 1, 'upper': 6},
+                             'num_boost_round': {'type': 'Integer', 'lower': 10, 'upper': 1200},
                              'subsample': {'type': 'Real', 'lower': 0.5, 'upper': 1},
                              'gamma': {'type': 'Real', 'lower': 0, 'upper': 5}
                              }

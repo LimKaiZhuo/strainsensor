@@ -221,8 +221,7 @@ class XGBmodel:
             training_labels = fl.labels
             val_labels = i_fl.labels
 
-        self.model.fit(X=training_features, y=training_labels, sample_weight=None, **{'early_stopping_rounds': 100,
-                                                                                      'eval_set':(val_features, val_labels)})
+        self.model.fit(X=training_features, y=training_labels, sample_weight=None)
 
         return self.model
 
