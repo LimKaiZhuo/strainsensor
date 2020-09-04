@@ -863,7 +863,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
             else:
                 raise TypeError('hparam opt bounds variable type must be Real or Integer only.')
 
-        default_parameters = [3, 0.5, 0.1]
+        default_parameters = [3, 0.5, 0.1, 600]
         data_store_count = 1
         data_store_name = 0
 
@@ -897,7 +897,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
             if (data_store_count - 1) % 5 == 0:
                 data_store = []
                 data_store_name += 5
-            data.append([depth, num_est])
+            data.append([params['max_depth'], params['num_boost_round'], params['subsample'], params['gamma']])
             data_store.append(data)
             with open('{}_{}.pkl'.format(data_store_dir, data_store_name), "wb") as file:
                 pickle.dump(data_store, file)
@@ -974,6 +974,8 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
         header = np.array(['index', 'max_depth', 'num_est', 'mse'])
     elif model_mode == 'svr':
         header = np.array(['index', 'epsilon', 'c', 'mse'])
+    elif model_mode == 'xgb':
+        header = np.array(['index', 'depth', 'ntrees', 'subsample', 'gamma', 'mse'])
     toprint = np.concatenate((header.reshape(1, -1), toprint), axis=0)
     sheetname = wb.sheetnames[-1]
     ws = wb[sheetname]

@@ -203,7 +203,7 @@ class XGBmodel:
         self.hparams = {**default_hparams, **hparams}
         self.model = MultiOutputRegressor(
             xgb.XGBRegressor(objective=self.hparams['objective'],
-                             n_estimators=self.hparams['num_boost_round'],
+                             n_estimators=int(self.hparams['num_boost_round']),
                              max_depth=self.hparams['max_depth'],
                              booster=self.hparams['booster'],
                              gamma=self.hparams['gamma'],
