@@ -203,7 +203,7 @@ class XGBmodel:
         self.hparams = {**default_hparams, **hparams}
         self.model = MultiOutputRegressor(
             xgb.XGBRegressor(objective=self.hparams['objective'],
-                             n_estimators=self.hparams['num_boost_rounds'],
+                             n_estimators=self.hparams['num_boost_round'],
                              max_depth=self.hparams['max_depth'],
                              booster=self.hparams['booster'],
                              gamma=self.hparams['gamma'],
@@ -211,14 +211,18 @@ class XGBmodel:
                              random_state=self.hparams['seed'],))
         self.normalise_labels = fl.normalise_labels
 
-    def train_model(self, fl, save_mode=False, plot_name=None):
+    def train_model(self, fl, i_fl, **kwargs):
         training_features = fl.features_c_norm
+        val_features = i_fl.features_c_norm
         if self.normalise_labels:
             training_labels = fl.labels_norm
+            val_labels = i_fl.labels_norm
         else:
             training_labels = fl.labels
+            val_labels = i_fl.labels
 
-        self.model.fit(training_features, training_labels, early_stopping_rounds=self.hparams['early_stopping_rounds'])
+        self.model.fit(X=training_features, y=training_labels, sample_weight=None, **{'early_stopping_rounds': 100,
+                                                                                      'eval_set':(val_features, val_labels)})
 
         return self.model
 

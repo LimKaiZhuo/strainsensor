@@ -3,6 +3,9 @@ import pandas as pd
 import itertools, random
 import openpyxl
 from own_package.others import create_excel_file, print_df_to_excel
+import six
+import sys
+sys.modules['sklearn.externals.six'] = six
 from imblearn.over_sampling import SMOTE
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import StratifiedKFold, KFold, LeaveOneOut
