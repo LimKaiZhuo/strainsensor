@@ -177,7 +177,7 @@ def selector(case, **kwargs):
                                              folders=['plots', 'models', 'learning rate plots'],
                                              excels=['skf_results', 'hparam_results'])
         fl = load_data_to_fl(loader_excel, normalise_labels=False,
-                             label_type='cutoff',
+                             label_type=kwargs['label_type'],
                              norm_mask=[0, 1, 3, 4, 5])
         test_fl = load_testset_to_fl(test_excel_dir, scaler=fl.scaler, norm_mask=[0, 1, 3, 4, 5])
         ett_fl_store = [load_testset_to_fl(x, scaler=fl.scaler, norm_mask=[0, 1, 3, 4, 5]) for x in ett_store]
@@ -211,6 +211,15 @@ def selector(case, **kwargs):
                                       plot_dir=None)
         elif model_mode == 'ann':
             hparam_opt_train_val_test(model_mode='ann3', loss_mode='ann', fl_in=fl, fl_store_in=fl_store,
+                                      test_fl=test_fl,
+                                      ett_fl_store=ett_fl_store,
+                                      norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
+                                      total_run=kwargs['total_run'], random_run=kwargs['random_run'],
+                                      instance_per_run=1, write_dir=write_dir,
+                                      save_model=save_model, save_model_dir=write_dir + '/models/',
+                                      plot_dir=write_dir+'/learning rate plots/')
+        elif model_mode == 'conv1':
+            hparam_opt_train_val_test(model_mode='conv1', loss_mode='ann', fl_in=fl, fl_store_in=fl_store,
                                       test_fl=test_fl,
                                       ett_fl_store=ett_fl_store,
                                       norm_mask=[0, 1, 3, 4, 5], scoring=scoring,

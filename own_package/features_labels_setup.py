@@ -10,7 +10,7 @@ from .others import print_array_to_excel
 
 
 class Shortcut_fl:
-    def __init__(self, features_c, labels, scaler, feature_names, label_names, norm_mask):
+    def __init__(self, features_c, labels, scaler, feature_names, label_names, norm_mask, label_type):
         self.features_c_names = feature_names
         self.features_c = features_c
         self.features_c_dim = features_c.shape[1]
@@ -34,12 +34,14 @@ class Shortcut_fl:
             self.features_c_norm[:, mask] = features_c_norm
         self.labels = labels
         self.labels_names = label_names
+        self.label_type = label_type
 
-def load_testset_to_fl(testset_excel_file, norm_mask, scaler):
+
+def load_testset_to_fl(testset_excel_file, norm_mask, scaler, label_type='cutoff'):
     df = pd.read_excel(testset_excel_file, index_col=0)
     features = df.iloc[:,:6].values
     labels = df.iloc[:,6:].values
-    return Shortcut_fl(features_c=features, labels=labels, scaler=scaler,
+    return Shortcut_fl(features_c=features, labels=labels, scaler=scaler, label_type=label_type,
                        feature_names=df.columns[:6], label_names=df.columns[6:], norm_mask=norm_mask)
 
 
@@ -91,7 +93,7 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
         labels = df_labels.values
         labels_end = labels[:,0][:,None]  # Make 2D array
         labels = labels[:,2:]
-        labels_names = df_labels.columns.values[:,2:]
+        labels_names = df_labels.columns.values[2:]
     elif label_type == 'cutoff':
         labels = df_labels.values
         labels_names = df_labels.columns.values
@@ -104,7 +106,7 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
         labels = df_labels.values
         labels_end = labels[:,0][:,None]  # Make 2D array
         labels = labels[:,1:]
-        labels_names = df_labels.columns.values[:,1:]
+        labels_names = df_labels.columns.values[1:]
     else:
         raise KeyError('label_type {} not recognised'.format(label_type))
 
