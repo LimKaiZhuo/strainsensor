@@ -752,7 +752,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
             global run_count, data_store, fl, fl_store, data_store, data_store_count, data_store_name
             start_time = time.time()
             run_count += 1
-            hparams = create_hparams(pre=pre, epochs=epochs, loss='mse', learning_rate=0.001 / 2,
+            hparams = create_hparams(pre=pre, epochs=epochs, loss='mse', learning_rate=0.001,
                                      reg_l1=0.0005, reg_l2=0,
                                      verbose=0)
 
@@ -782,7 +782,8 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
             with open('{}_{}.pkl'.format(data_store_dir, data_store_name), "wb") as file:
                 pickle.dump(data_store, file)
             data_store_count += 1
-            loss = (val_score * 2 + train_score) / 3
+            #loss = (val_score * 2 + train_score) / 3
+            loss = val_score
             end_time = time.time()
             print('**************************************************************************************************\n'
                   'Run Number {} \n'
@@ -791,6 +792,76 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
                   'Time Taken: {}\n'
                   '*********************************************************************************************'.format(
                 run_count, instance_per_run, scoring, loss, end_time - start_time))
+            return loss
+    elif model_mode == 'conv1':
+
+        bounds = [[1, 400, ],
+                  [1, 50, ],
+                  [100, 2000]]
+
+        pre = Integer(low=bounds[0][0], high=bounds[0][1], name='pre')
+        filters = Integer(low=bounds[1][0], high=bounds[1][1], name='filters')
+        epochs = Integer(low=bounds[2][0], high=bounds[2][1], name='epochs')
+        dimensions = [pre, filters, epochs]
+        default_parameters = [70, 5, 1000]
+        data_store_count = 1
+        data_store_name = 0
+
+        x_iters = []
+        func_vals = []
+        @use_named_args(dimensions=dimensions)
+        def fitness(pre, filter, epochs):
+            global run_count, data_store, fl, fl_store, data_store, data_store_count, data_store_name
+            try:
+                idx = x_iters.index([pre, filter, epochs])
+                loss = func_vals[idx]
+                print(f'Re-evaluated {[pre, filter, epochs]}')
+            except ValueError:
+                start_time = time.time()
+                x_iters.append([pre, filter, epochs])
+                start_time = time.time()
+                run_count += 1
+                hparams = create_hparams(pre=pre, epochs=epochs, loss='mse', learning_rate=0.001,
+                                         reg_l1=0.0005, reg_l2=0.0005,
+                                         verbose=0)
+
+                if plot_dir:
+                    plot_name = '{}/{}_{}_run_{}'.format(plot_dir, model_mode, loss_mode, run_count)
+                else:
+                    plot_name = None
+                val_score, train_score, data = run_skf_train_val_test_error(model_mode=model_mode, loss_mode=loss_mode,
+                                                                            fl=fl,
+                                                                            fl_store=fl_store, test_fl=test_fl,
+                                                                            ett_fl_store=ett_fl_store,
+                                                                            model_name='{}_{}_{}'.format(write_dir,
+                                                                                                         model_mode,
+                                                                                                         run_count),
+                                                                            hparams=hparams,
+                                                                            k_folds=10, scoring=scoring,
+                                                                            save_model_name='hparam_' + str(
+                                                                                run_count) + '_',
+                                                                            save_model=save_model,
+                                                                            save_model_dir=save_model_dir,
+                                                                            plot_name=plot_name)
+                if (data_store_count - 1) % 5 == 0:
+                    data_store = []
+                    data_store_name += 5
+                data.append([pre, filter, epochs])
+                data_store.append(data)
+                with open('{}_{}.pkl'.format(data_store_dir, data_store_name), "wb") as file:
+                    pickle.dump(data_store, file)
+                data_store_count += 1
+                #loss = (val_score * 2 + train_score) / 3
+                loss = val_score
+                func_vals.append(loss)
+                end_time = time.time()
+                print('**************************************************************************************************\n'
+                      'Run Number {} \n'
+                      'Instance per run {} \n'
+                      'Current run {} {} \n'
+                      'Time Taken: {}\n'
+                      '*********************************************************************************************'.format(
+                    run_count, instance_per_run, scoring, loss, end_time - start_time))
             return loss
     elif model_mode == 'dtr':
         start_time = time.time()

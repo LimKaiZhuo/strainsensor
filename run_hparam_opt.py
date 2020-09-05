@@ -302,7 +302,7 @@ for i in [13]:
     #         test_excel_dir='./excel/ett_30testset_cut.xlsx',
     #         ett_store=ett_store)
     selector(case=3.1, round=i, loader_excel='./excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(i), save_model=True,
-             smote_numel=None, smote_excel=None, scoring='re', augment_type='invariant', model_mode='xgb',
+             smote_numel=1100, smote_excel=None, scoring='re', augment_type='smote', model_mode='xgb',
              total_run=150, random_run=100,
              results_name='xgb_NDA_round_{}'.format(i),
              test_excel_dir='./excel/ett_30testset_cut.xlsx',
