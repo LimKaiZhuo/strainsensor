@@ -750,6 +750,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
         @use_named_args(dimensions=dimensions)
         def fitness(pre, epochs):
             global run_count, data_store, fl, fl_store, data_store, data_store_count, data_store_name
+            start_time = time.time()
             run_count += 1
             hparams = create_hparams(pre=pre, epochs=epochs, loss='mse', learning_rate=0.001 / 2,
                                      reg_l1=0.0005, reg_l2=0,
@@ -806,6 +807,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
         @use_named_args(dimensions=dimensions)
         def fitness(depth, num_est):
             global run_count, data_store, fl, fl_store, data_store_count, data_store_name
+            start_time = time.time()
             run_count += 1
             hparams = create_hparams(max_depth=depth, num_est=num_est)
 
@@ -869,50 +871,61 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
         data_store_count = 1
         data_store_name = 0
 
+        x_iters = []
+        func_vals = []
+
         @use_named_args(dimensions=dimensions)
         def fitness(**params):
             global run_count, data_store, fl, fl_store, data_store_count, data_store_name
-            run_count += 1
-            hparams = params
+            try:
+                idx = x_iters.index(params)
+                loss = func_vals[idx]
+                print(f'Re-evaluated {params}')
+            except ValueError:
+                x_iters.append(params)
+                run_count += 1
+                hparams = params
+                start_time = time.time()
+                if plot_dir:
+                    plot_name = '{}/{}_{}_run_{}'.format(plot_dir, model_mode, loss_mode, run_count)
+                else:
+                    plot_name = None
+                val_score, train_score, data = run_skf_train_val_test_error(model_mode=model_mode, loss_mode=loss_mode,
+                                                                            fl=fl,
+                                                                            fl_store=fl_store, test_fl=test_fl,
+                                                                            ett_fl_store=ett_fl_store,
+                                                                            model_name='{}_{}_{}'.format(write_dir,
+                                                                                                         model_mode,
+                                                                                                         run_count),
+                                                                            hparams=hparams,
+                                                                            k_folds=10, scoring=scoring,
+                                                                            save_model_name='hparam_' + str(
+                                                                                run_count) + '_',
+                                                                            save_model=save_model,
+                                                                            save_model_dir=save_model_dir,
+                                                                            plot_name=plot_name)
 
-            if plot_dir:
-                plot_name = '{}/{}_{}_run_{}'.format(plot_dir, model_mode, loss_mode, run_count)
-            else:
-                plot_name = None
-            val_score, train_score, data = run_skf_train_val_test_error(model_mode=model_mode, loss_mode=loss_mode,
-                                                                        fl=fl,
-                                                                        fl_store=fl_store, test_fl=test_fl,
-                                                                        ett_fl_store=ett_fl_store,
-                                                                        model_name='{}_{}_{}'.format(write_dir,
-                                                                                                     model_mode,
-                                                                                                     run_count),
-                                                                        hparams=hparams,
-                                                                        k_folds=10, scoring=scoring,
-                                                                        save_model_name='hparam_' + str(
-                                                                            run_count) + '_',
-                                                                        save_model=save_model,
-                                                                        save_model_dir=save_model_dir,
-                                                                        plot_name=plot_name)
+                # loss = (val_score + train_score) / 2
+                loss = val_score
+                func_vals.append(loss)
+                if (data_store_count - 1) % 5 == 0:
+                    data_store = []
+                    data_store_name += 5
+                data.append([params['max_depth'], params['num_boost_round'], params['subsample'], params['gamma']])
+                data_store.append(data)
+                with open('{}_{}.pkl'.format(data_store_dir, data_store_name), "wb") as file:
+                    pickle.dump(data_store, file)
 
-            # loss = (val_score + train_score) / 2
-            loss = val_score
-            if (data_store_count - 1) % 5 == 0:
-                data_store = []
-                data_store_name += 5
-            data.append([params['max_depth'], params['num_boost_round'], params['subsample'], params['gamma']])
-            data_store.append(data)
-            with open('{}_{}.pkl'.format(data_store_dir, data_store_name), "wb") as file:
-                pickle.dump(data_store, file)
+                data_store_count += 1
+                end_time = time.time()
+                print(f'**************************************************************************************************\n'
+                      f'Run Number {run_count} \n'
+                      f'{params}\n'
+                      f'Instance per run {instance_per_run} \n'
+                      f'Current run {scoring} {loss} \n'
+                      f'Time Taken: {end_time - start_time}\n'
+                      '*********************************************************************************************')
 
-            data_store_count += 1
-            end_time = time.time()
-            print(f'**************************************************************************************************\n'
-                  f'Run Number {run_count} \n'
-                  f'{params}\n'
-                  f'Instance per run {instance_per_run} \n'
-                  f'Current run {scoring} {loss} \n'
-                  f'Time Taken: {end_time - start_time}\n'
-                  '*********************************************************************************************')
             return loss
     elif model_mode == 'svr':
         start_time = time.time()
@@ -927,6 +940,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
         @use_named_args(dimensions=dimensions)
         def fitness(epsilon, c):
             global run_count, data_store, fl, fl_store
+            start_time = time.time()
             run_count += 1
             hparams = create_hparams(epsilon=epsilon, c=c)
 

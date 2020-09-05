@@ -29,7 +29,7 @@ def produce_invariant(features, labels, numel):
 def create_invariant_testset(testset_excel_dir, numel):
     df = pd.read_excel(testset_excel_dir, index_col=0)
 
-    features, labels = produce_invariant(features=df.values[:,:-3], labels=df.values[:,-3:], numel=numel)
+    features, labels = produce_invariant(features=df.values[:,:6], labels=df.values[:,6:], numel=numel)
     new_data = np.concatenate((features, labels), axis=1)
     columns = df.columns
     new_df = pd.DataFrame(data=new_data, columns=columns)

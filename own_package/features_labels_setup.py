@@ -4,11 +4,6 @@ import pandas as pd
 from openpyxl import load_workbook
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import StratifiedKFold, KFold, LeaveOneOut
-import pickle
-import os
-import pathlib
-import warnings
-import copy
 import xlrd
 from own_package.smote.smote_code import produce_smote, produce_invariant
 from .others import print_array_to_excel
@@ -42,10 +37,10 @@ class Shortcut_fl:
 
 def load_testset_to_fl(testset_excel_file, norm_mask, scaler):
     df = pd.read_excel(testset_excel_file, index_col=0)
-    features = df.iloc[:,:-3].values
-    labels = df.iloc[:,-3:].values
+    features = df.iloc[:,:6].values
+    labels = df.iloc[:,6:].values
     return Shortcut_fl(features_c=features, labels=labels, scaler=scaler,
-                       feature_names=df.columns[:-3], label_names=df.columns[-3:], norm_mask=norm_mask)
+                       feature_names=df.columns[:6], label_names=df.columns[6:], norm_mask=norm_mask)
 
 
 def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_mask=None):

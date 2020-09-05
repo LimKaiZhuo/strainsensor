@@ -205,7 +205,8 @@ def selector(case, **kwargs):
             hparam_opt_train_val_test(model_mode='xgb', loss_mode='xgb', fl_in=fl, fl_store_in=fl_store, test_fl=test_fl,
                                       ett_fl_store=ett_fl_store,
                                       norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
-                                      total_run=40, instance_per_run=1, write_dir=write_dir,
+                                      total_run=kwargs['total_run'], random_run=kwargs['random_run'],
+                                      instance_per_run=1, write_dir=write_dir,
                                       save_model=save_model, save_model_dir=write_dir + '/models/',
                                       plot_dir=None)
         elif model_mode == 'ann':
@@ -213,7 +214,8 @@ def selector(case, **kwargs):
                                       test_fl=test_fl,
                                       ett_fl_store=ett_fl_store,
                                       norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
-                                      total_run=20, instance_per_run=1, write_dir=write_dir,
+                                      total_run=kwargs['total_run'], random_run=kwargs['random_run'],
+                                      instance_per_run=1, write_dir=write_dir,
                                       save_model=save_model, save_model_dir=write_dir + '/models/',
                                       plot_dir=write_dir+'/learning rate plots/')
     elif case == 4:

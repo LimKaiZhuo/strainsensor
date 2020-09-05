@@ -5,7 +5,7 @@ from own_package.others import print_df_to_excel, create_excel_file
 from own_package.smote.smote_code import produce_smote, create_invariant_testset
 from own_package.features_labels_setup import load_data_to_fl
 from own_package.data_store_analysis import get_best_trial_from_rounds, get_best_trial_from_rounds_custom_metric
-from own_package.hparam_opt import read_hparam_data
+#from own_package.hparam_opt import read_hparam_data
 
 
 def selector(case, **kwargs):
@@ -26,35 +26,36 @@ def selector(case, **kwargs):
         wb.save(excel_dir)
         pass
     elif case == 2:
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        testset_excel_dir = './excel/ett_30testset_points.xlsx'
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=1)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=1)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=1)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=5)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=5)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=5)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=10)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=10)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=10)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=30)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=30)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=30)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=50)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=50)
-        create_invariant_testset(testset_excel_dir='./excel/ett_30testset_cut.xlsx',
+        create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=50)
     elif case == 3:
         get_best_trial_from_rounds(dir_store=['./results/hparams_opt round 1 DTR',
@@ -154,4 +155,4 @@ def selector(case, **kwargs):
         pass
 
 
-selector(4, write_dir='./results/hparams_opt round 13 dtr invariant 10')
+selector(2, write_dir='./results/hparams_opt round 13 dtr invariant 10')
