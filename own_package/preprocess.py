@@ -395,8 +395,6 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
         for c_idx, value in enumerate(row, 1):
             ws.cell(row=r_idx + 1, column=c_idx, value=value)
 
-    excel_name = write_dir + '/results.xlsx'
-    wb = openpyxl.Workbook()
     wb.create_sheet('gf20')
     ws = wb['gf20']
 

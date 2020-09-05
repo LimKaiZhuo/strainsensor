@@ -700,7 +700,9 @@ def hparam_opt_training(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, wr
 
 def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_in, test_fl, ett_fl_store,
                               write_dir, save_model_dir,
-                              total_run, instance_per_run=3, save_model=False, scoring='mse',
+                              total_run,
+                              instance_per_run=1, random_run=10,
+                              save_model=False, scoring='mse',
                               plot_dir=None):
     """
     hi
@@ -863,7 +865,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
             else:
                 raise TypeError('hparam opt bounds variable type must be Real or Integer only.')
 
-        default_parameters = [3, 0.5, 0.1, 600]
+        default_parameters = [3, 600,0.5, 0.1]
         data_store_count = 1
         data_store_name = 0
 
@@ -959,6 +961,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
                                 dimensions=dimensions,
                                 acq_func='EI',  # Expected Improvement.
                                 n_calls=total_run,
+                                n_random_starts=random_run,
                                 x0=default_parameters)
 
     wb = load_workbook(write_dir + '/hparam_results.xlsx')

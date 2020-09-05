@@ -197,7 +197,8 @@ def selector(case, **kwargs):
             hparam_opt_train_val_test(model_mode='dtr', loss_mode='dtr', fl_in=fl, fl_store_in=fl_store, test_fl=test_fl,
                                       ett_fl_store=ett_fl_store,
                                       norm_mask=[0, 1, 3, 4, 5], scoring=scoring,
-                                      total_run=40, instance_per_run=1, write_dir=write_dir,
+                                      total_run=kwargs['total_run'], random_run=kwargs['random_run'],
+                                      instance_per_run=1, write_dir=write_dir,
                                       save_model=save_model, save_model_dir=write_dir + '/models/',
                                       plot_dir=None)
         elif model_mode == 'xgb':
@@ -300,7 +301,8 @@ for i in [13]:
     #         ett_store=ett_store)
     selector(case=3.1, round=i, loader_excel='./excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(i), save_model=True,
              smote_numel=None, smote_excel=None, scoring='re', augment_type='invariant', model_mode='xgb',
-             results_name='xgb_deep_I100_round_{}'.format(i),
+             total_run=150, random_run=100,
+             results_name='xgb_NDA_round_{}'.format(i),
              test_excel_dir='./excel/ett_30testset_cut.xlsx',
              ett_store=ett_store)
 #for i in [1,2,3,4,5,6,'6e',7,8,9,10,11,12,13]:
