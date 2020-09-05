@@ -235,26 +235,26 @@ def selector(case, **kwargs):
                          trainset_ett_idx=-4)
         pass
 
-
-ett_store = ['./excel/ett_30testset_cut Invariant 1.xlsx',
-             './excel/ett_30testset_cut Invariant 1 - 2.xlsx',
-             './excel/ett_30testset_cut Invariant 1 - 3.xlsx',
-             './excel/ett_30testset_cut Invariant 5.xlsx',
-             './excel/ett_30testset_cut Invariant 5 - 2.xlsx',
-             './excel/ett_30testset_cut Invariant 5 - 3.xlsx',
-             './excel/ett_30testset_cut Invariant 10.xlsx',
-             './excel/ett_30testset_cut Invariant 10 - 2.xlsx',
-             './excel/ett_30testset_cut Invariant 10 - 3.xlsx',
-             './excel/ett_30testset_cut Invariant 30.xlsx',
-             './excel/ett_30testset_cut Invariant 30 - 2.xlsx',
-             './excel/ett_30testset_cut Invariant 30 - 3.xlsx',
-             './excel/ett_30testset_cut Invariant 50.xlsx',
-             './excel/ett_30testset_cut Invariant 50 - 2.xlsx',
-             './excel/ett_30testset_cut Invariant 50 - 3.xlsx',
-             './excel/ett_125trainset_cut.xlsx',
-             './excel/ett_125trainset_cut Invariant 1.xlsx',
-             './excel/ett_125trainset_cut Invariant 5.xlsx',
-             './excel/ett_125trainset_cut Invariant 10.xlsx']
+label_type = 'points'
+ett_store = [f'./excel/ett_30testset_{label_type} Invariant 1.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 1 - 2.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 1 - 3.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 5.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 5 - 2.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 5 - 3.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 10.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 10 - 2.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 10 - 3.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 30.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 30 - 2.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 30 - 3.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 50.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 50 - 2.xlsx',
+             f'./excel/ett_30testset_{label_type} Invariant 50 - 3.xlsx',
+             f'./excel/ett_125trainset_{label_type}.xlsx',
+             f'./excel/ett_125trainset_{label_type} Invariant 1.xlsx',
+             f'./excel/ett_125trainset_{label_type} Invariant 5.xlsx',
+             f'./excel/ett_125trainset_{label_type} Invariant 10.xlsx']
 
 #'./excel/ett_125trainset_cut Invariant 30.xlsx'
 
@@ -295,17 +295,17 @@ ett_store = ['./excel/ett_30testset_cut Invariant 1.xlsx',
 #         results_name='ann', model_mode='ann',
 #         test_excel_dir='./excel/ett_30testset_cut.xlsx',
 #         ett_store=ett_store)
-for i in [13]:
+for i in [1]:
     #selector(case=1, round=i, loader_excel='./excel/Data_loader_spline_full_onehot_R{}test.xlsx'.format(i), save_model=True,
     #         smote_numel=None, smote_excel=None, scoring='mse', augment_type='invariant', model_mode='conv1',
     #         results_name='conv1_round_{}'.format(i),
     #         test_excel_dir='./excel/ett_30testset_cut.xlsx',
     #         ett_store=ett_store)
-    selector(case=3.1, round=i, loader_excel='./excel/Data_loader_spline_full_onehot_R{}_cut_CM3.xlsx'.format(i), save_model=True,
-             smote_numel=1100, smote_excel=None, scoring='re', augment_type='smote', model_mode='xgb',
-             total_run=150, random_run=100,
-             results_name='xgb_NDA_round_{}'.format(i),
-             test_excel_dir='./excel/ett_30testset_cut.xlsx',
+    selector(case=3.1, round=i, loader_excel='./excel/Data_loader_spline_full_onehot_R{}.xlsx'.format(i), save_model=True,
+             smote_numel=None, smote_excel=None, scoring='re', augment_type='smote', model_mode='conv1', label_type=label_type,
+             total_run=50, random_run=10,
+             results_name='conv1_round_{}'.format(i),
+             test_excel_dir=f'./excel/ett_30testset_{label_type}.xlsx',
              ett_store=ett_store)
 #for i in [1,2,3,4,5,6,'6e',7,8,9,10,11,12,13]:
 #    selector(case=4, write_dir='./results/hparams_opt round {} DTR_weak_round_{}'.format(i,i))

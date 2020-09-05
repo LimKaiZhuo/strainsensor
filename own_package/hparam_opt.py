@@ -810,7 +810,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
         x_iters = []
         func_vals = []
         @use_named_args(dimensions=dimensions)
-        def fitness(pre, filter, epochs):
+        def fitness(pre, filters, epochs):
             global run_count, data_store, fl, fl_store, data_store, data_store_count, data_store_name
             try:
                 idx = x_iters.index([pre, filter, epochs])

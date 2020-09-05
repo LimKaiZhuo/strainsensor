@@ -91,7 +91,7 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
         labels = df_labels.values
         labels_end = labels[:,0][:,None]  # Make 2D array
         labels = labels[:,2:]
-        labels_names = df_labels.columns.values
+        labels_names = df_labels.columns.values[:,2:]
     elif label_type == 'cutoff':
         labels = df_labels.values
         labels_names = df_labels.columns.values
@@ -104,7 +104,7 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
         labels = df_labels.values
         labels_end = labels[:,0][:,None]  # Make 2D array
         labels = labels[:,1:]
-        labels_names = df_labels.columns.values
+        labels_names = df_labels.columns.values[:,1:]
     else:
         raise KeyError('label_type {} not recognised'.format(label_type))
 

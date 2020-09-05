@@ -505,13 +505,14 @@ def run_skf_with_training_error(model_mode, loss_mode, fl, fl_store, hparams,
 
 def eval_model_on_fl(model, fl, return_df=True, label_scaler=None):
     p_y, _, _ = model.eval(fl)
-    if label_scaler:
-        p_y = label_scaler(p_y)
-    for row, p_label in enumerate(p_y.tolist()):
-        if p_label[1] > p_label[2]:
-            p_y[row, 1] = p_y[row, 2]
-        if p_label[0] > p_y[row, 1]:
-            p_y[row, 0] = p_y[row, 1]
+    if fl.label_type == 'cutoff':
+        if label_scaler:
+            p_y = label_scaler(p_y)
+        for row, p_label in enumerate(p_y.tolist()):
+            if p_label[1] > p_label[2]:
+                p_y[row, 1] = p_y[row, 2]
+            if p_label[0] > p_y[row, 1]:
+                p_y[row, 0] = p_y[row, 1]
     se_store = (fl.labels - p_y) ** 2
     re_store = (np.abs(fl.labels - p_y).T/fl.labels[:,-1]).T
     if return_df:
