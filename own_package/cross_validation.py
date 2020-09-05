@@ -175,21 +175,21 @@ def run_skf(model_mode, loss_mode, fl, fl_store, hparams,
                             , axis=1)
     if fl.label_type == 'points':
         predicted_labels_name = list(map(str, np.arange(2,21)))
-        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        predicted_labels_name = [f'P_{x}'for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
                   list(map(str, np.arange(2,21))) + \
                   predicted_labels_name
     elif fl.label_type == 'cutoff':
         predicted_labels_name = list(fl.labels_names)
-        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
                   list(fl.labels_names) + \
                   predicted_labels_name
     elif fl.label_type == 'gf20':
         predicted_labels_name = list(map(str, np.arange(1,21)))
-        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
                   list(map(str, np.arange(1,21))) + \
@@ -445,14 +445,14 @@ def run_skf_with_training_error(model_mode, loss_mode, fl, fl_store, hparams,
                             , axis=1)
     if fl.label_type == 'points':
         predicted_labels_name = list(map(str, np.arange(2,101)))
-        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
                   list(map(str, np.arange(2,101))) + \
                   predicted_labels_name
     elif fl.label_type == 'cutoff':
         predicted_labels_name = list(fl.labels_names)
-        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        predicted_labels_name = [f'P_{x}'for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
                   list(fl.labels_names) + \
@@ -698,7 +698,7 @@ def run_skf_train_val_test_error(model_mode, loss_mode, fl, fl_store, test_fl, e
     train_mre = np.mean(np.abs(fl.labels-p_y).T / fl.labels[:,-1])
     new_df = np.concatenate((fl.labels, p_y) , axis=1)
     predicted_labels_name = list(fl.labels_names)
-    predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+    predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
     headers = list(fl.labels_names) + predicted_labels_name
     train_df = pd.DataFrame(data=new_df, columns=headers)
 
@@ -708,7 +708,7 @@ def run_skf_train_val_test_error(model_mode, loss_mode, fl, fl_store, test_fl, e
     test_mre = np.mean(np.abs(test_fl.labels-p_y).T / test_fl.labels[:,-1])
     new_df = np.concatenate((test_fl.labels, p_y) , axis=1)
     predicted_labels_name = list(fl.labels_names)
-    predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+    predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
     headers = list(fl.labels_names) + predicted_labels_name
     test_df = pd.DataFrame(data=new_df, columns=headers)
 
@@ -725,7 +725,7 @@ def run_skf_train_val_test_error(model_mode, loss_mode, fl, fl_store, test_fl, e
         ett_mre_store.append(np.mean(np.abs(ett_fl.labels - p_y).T / ett_fl.labels[:,-1]))
         new_df = np.concatenate((ett_fl.labels, p_y), axis=1)
         predicted_labels_name = list(fl.labels_names)
-        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
         headers = list(fl.labels_names) + predicted_labels_name
         ett_df_store.append(pd.DataFrame(data=new_df, columns=headers))
 
@@ -738,14 +738,14 @@ def run_skf_train_val_test_error(model_mode, loss_mode, fl, fl_store, test_fl, e
                             , axis=1)
     if fl.label_type == 'points':
         predicted_labels_name = list(map(str, np.arange(2,101)))
-        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
                   list(map(str, np.arange(2,101))) + \
                   predicted_labels_name
     elif fl.label_type == 'cutoff':
         predicted_labels_name = list(fl.labels_names)
-        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
                   list(fl.labels_names) + \
@@ -894,7 +894,7 @@ def run_eval_model_on_train_val_test_error(model, fl, fl_store, test_fl, ett_fl_
     train_mre = np.mean(np.abs(fl.labels - p_y).T / fl.labels[:, -1])
     new_df = np.concatenate((fl.labels, p_y), axis=1)
     predicted_labels_name = list(fl.labels_names)
-    predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+    predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
     headers = list(fl.labels_names) + predicted_labels_name
     train_df = pd.DataFrame(data=new_df, columns=headers)
 
@@ -904,7 +904,7 @@ def run_eval_model_on_train_val_test_error(model, fl, fl_store, test_fl, ett_fl_
     test_mre = np.mean(np.abs(test_fl.labels - p_y).T / test_fl.labels[:, -1])
     new_df = np.concatenate((test_fl.labels, p_y), axis=1)
     predicted_labels_name = list(fl.labels_names)
-    predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+    predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
     headers = list(fl.labels_names) + predicted_labels_name
     test_df = pd.DataFrame(data=new_df, columns=headers)
 
@@ -920,7 +920,7 @@ def run_eval_model_on_train_val_test_error(model, fl, fl_store, test_fl, ett_fl_
         ett_mre_store.append(np.mean(np.abs(ett_fl.labels - p_y).T / ett_fl.labels[:, -1]))
         new_df = np.concatenate((ett_fl.labels, p_y), axis=1)
         predicted_labels_name = list(fl.labels_names)
-        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
         headers = list(fl.labels_names) + predicted_labels_name
         ett_df_store.append(pd.DataFrame(data=new_df, columns=headers))
 
@@ -932,14 +932,14 @@ def run_eval_model_on_train_val_test_error(model, fl, fl_store, test_fl, ett_fl_
                             , axis=1)
     if fl.label_type == 'points':
         predicted_labels_name = list(map(str, np.arange(2, 101)))
-        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        predicted_labels_name = [f'P_{x}'for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
                   list(map(str, np.arange(2, 101))) + \
                   predicted_labels_name
     elif fl.label_type == 'cutoff':
         predicted_labels_name = list(fl.labels_names)
-        predicted_labels_name = ['P_' + x for x in predicted_labels_name]
+        predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
                   list(fl.labels_names) + \
