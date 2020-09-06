@@ -71,4 +71,4 @@ def selector(case, **kwargs):
 #for i in [13,]:
 #    selector(case=2, write_dir='./results/hparams_opt round {} DTR_weak_I50b_round_{}'.format(i, i))
 #selector(case=3, write_dir='./results/test')
-selector(case=2, write_dir='./results/dtr_makeup_round - 3')
+selector(case=2, write_dir='./results/hparams_opt round 1 conv1_round_1')

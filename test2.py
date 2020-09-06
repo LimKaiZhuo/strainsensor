@@ -26,7 +26,7 @@ def selector(case, **kwargs):
         wb.save(excel_dir)
         pass
     elif case == 2:
-        testset_excel_dir = './excel/ett_125trainset_points.xlsx'
+        testset_excel_dir = './excel/ett_30testset_gf20.xlsx'
         create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=1)
         create_invariant_testset(testset_excel_dir=testset_excel_dir,

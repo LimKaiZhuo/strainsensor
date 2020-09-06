@@ -737,11 +737,18 @@ def run_skf_train_val_test_error(model_mode, loss_mode, fl, fl_store, test_fl, e
                              np.array(predicted_labels_store))
                             , axis=1)
     if fl.label_type == 'points':
-        predicted_labels_name = list(map(str, np.arange(2,101)))
+        predicted_labels_name = list(map(str, np.arange(2,21)))
         predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
         headers = ['folds'] + \
                   list(map(str, fl.features_c_names)) + \
-                  list(map(str, np.arange(2,101))) + \
+                  list(map(str, np.arange(2,21))) + \
+                  predicted_labels_name
+    elif fl.label_type == 'gf20':
+        predicted_labels_name = list(map(str, np.arange(1,21)))
+        predicted_labels_name = [f'P_{x}' for x in predicted_labels_name]
+        headers = ['folds'] + \
+                  list(map(str, fl.features_c_names)) + \
+                  list(map(str, np.arange(1,21))) + \
                   predicted_labels_name
     elif fl.label_type == 'cutoff':
         predicted_labels_name = list(fl.labels_names)

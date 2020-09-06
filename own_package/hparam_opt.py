@@ -846,7 +846,7 @@ def hparam_opt_train_val_test(model_mode, loss_mode, norm_mask, fl_in, fl_store_
                 if (data_store_count - 1) % 5 == 0:
                     data_store = []
                     data_store_name += 5
-                data.append([pre, filter, epochs])
+                data.append([pre, filters, epochs])
                 data_store.append(data)
                 with open('{}_{}.pkl'.format(data_store_dir, data_store_name), "wb") as file:
                     pickle.dump(data_store, file)
