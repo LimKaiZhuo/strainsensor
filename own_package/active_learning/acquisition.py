@@ -174,7 +174,8 @@ def features_to_features_input(fl, features_c, features_d) -> np.ndarray:
     return np.array(features_c.tolist() + features_dc_store)
 
 
-def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_run, normalise_labels, batch_runs=1,
+def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_run, random_run, normalise_labels,
+                    batch_runs=1, ignore_distance=False,
                     norm_mask=None,
                     acquisition_file='./excel/acquisition_opt.xlsx'):
     """
@@ -280,7 +281,10 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
 
                 # Overall Acquisition Score. Higher score if l2 distance is larger and uncertainty (std) is larger.
                 disagreement = np.sum(prediction_std)
-                a_score = l2_distance * disagreement
+                if ignore_distance:
+                    a_score = disagreement
+                else:
+                    a_score = l2_distance * disagreement
 
                 # Storing intermediate results into list to print into excel later
                 l2_dist_store.append(l2_distance)
@@ -294,10 +298,11 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
             return -a_score
 
 
-        search_result = forest_minimize(func=fitness,
+        search_result = gp_minimize(func=fitness,
                                         dimensions=space,
                                         acq_func='EI',  # Expected Improvement.
                                         n_calls=total_run,
+                                        n_random_starts=random_run,
                                         verbose=False)
         '''
 

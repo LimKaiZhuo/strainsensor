@@ -16,10 +16,11 @@ def selector(run, **kwargs):
 
         acquisition_opt(bounds=bounds, model_directory='{}/models'.format(write_dir),
                         svm_directory='./results/svm gamma130/models',
-                        loader_file='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
-                        total_run=3000,
+                        loader_file='./excel/Data_loader_spline_full_onehot_R1_cut_CM3.xlsx',
+                        total_run=2000,
+                        random_run=1700,
                         batch_runs=1,
-                        normalise_labels=True,
+                        normalise_labels=False,
                         norm_mask=[0, 1, 3, 4, 5],
                         acquisition_file='{}/acq.xlsx'.format(write_dir))
     elif run == 1.1:
