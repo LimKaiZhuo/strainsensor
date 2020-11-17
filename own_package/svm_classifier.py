@@ -12,31 +12,19 @@ from own_package.others import print_array_to_excel, create_results_directory
 
 class SVMmodel:
     def __init__(self, fl, gamma=1):
-        """
-        Initialises new SVR model based on input features_dim, labels_dim, hparams
-        :param features_dim: Number of input feature nodes. Integer
-        :param labels_dim: Number of output label nodes. Integer
-        :param hparams: Dict containing hyperparameter information. Dict can be created using create_hparams() function.
-        hparams includes: hidden_layers: List containing number of nodes in each hidden layer. [10, 20] means 10 then 20 nodes.
-        """
         self.features_dim = fl.features_dim
         self.labels_dim = fl.labels_dim  # Assuming that each task has only 1 dimensional output
-
-        self.model = SVC(kernel='rbf', gamma=gamma, degree=5, probability=True)
+        self.model = SVC(kernel='rbf', gamma=gamma,probability=True)
 
     def train_model(self, fl):
         training_features = fl.features
         training_labels = fl.labels
-
         self.model.fit(training_features, training_labels)
-
         return self.model
 
     def eval(self, eval_fl):
         features = eval_fl.features
-
         y_pred = self.model.predict(features)
-
         return y_pred
 
 

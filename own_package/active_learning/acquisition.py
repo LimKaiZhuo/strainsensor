@@ -1,8 +1,8 @@
-from tensorflow.python.keras import backend as K
-
-from tensorflow.python.keras.models import load_model
-#from tensorflow.python.keras.utils import CustomObjectScope
-from tensorflow.python.keras.initializers import glorot_uniform
+# from tensorflow.python.keras import backend as K
+#
+# from tensorflow.python.keras.models import load_model
+##from tensorflow.python.keras.utils import CustomObjectScope
+# from tensorflow.python.keras.initializers import glorot_uniform
 
 import numpy as np
 import pandas as pd
@@ -20,7 +20,9 @@ from skopt.plots import plot_convergence
 from sklearn.metrics import pairwise_distances, pairwise_distances_chunked
 from own_package.features_labels_setup import load_data_to_fl
 from own_package.others import print_array_to_excel, create_results_directory, print_df_to_excel
-from own_package.pso_ga import pso_ga
+
+
+# from own_package.pso_ga import pso_ga
 
 
 def load_svm_ensemble(model_directory) -> List:
@@ -66,22 +68,24 @@ def svm_ensemble_prediction(model_store, composition, probability=False):
         predictions_store.append(model.model.predict(composition))
         distance_store.append(model.model.decision_function(composition))
         if probability:
-            proba_store.append(model.model.predict_proba(composition)[:,1])
+            proba_store.append(model.model.predict_proba(composition)[:, 1])
 
     predictions = np.round(np.average(np.array(predictions_store), axis=0), decimals=0)
     distance = np.mean(np.array(distance_store), axis=0)
 
     if probability:
-        probability = np.mean(np.array(proba_store),axis = 0)
+        probability = np.mean(np.array(proba_store), axis=0)
         return predictions, distance, probability
     else:
         return predictions, distance
+
 
 def haitao_error(y_true, y_pred):
     diff = K.abs((y_true - y_pred) / K.reshape(K.clip(K.abs(y_true[:, -1]),
                                                       K.epsilon(),
                                                       None), (-1, 1)))
     return 100. * K.mean(diff, axis=-1)
+
 
 def load_model_ensemble(model_directory) -> List:
     """
@@ -106,7 +110,7 @@ def load_model_ensemble(model_directory) -> List:
         if name.endswith(".pkl"):
             model_store.append(pickle.load(open(name, 'rb')))
         elif name.endswith('.h5'):
-            #with CustomObjectScope({'GlorotUniform': glorot_uniform()}):
+            # with CustomObjectScope({'GlorotUniform': glorot_uniform()}):
             try:
                 model_store.append(load_model(name))
             except ValueError:
@@ -129,15 +133,16 @@ def load_model_chunks(chunks):
                 print('EOFError with {}'.format(name))
                 model_store.append(None)
         elif name.endswith('.h5'):
-            #with CustomObjectScope({'GlorotUniform': glorot_uniform()}):
+            # with CustomObjectScope({'GlorotUniform': glorot_uniform()}):
             model_store.append(load_model(name))
         print('Model {} has been loaded'.format(name))
     return model_store
 
+
 def model_ensemble_prediction(model_store, features_c_norm):
     """
     Run prediction given one set of feactures_c_norm input, using all the models in model store.
-    :param model_store: List of keras models returned by the def load_model_ensemble
+    :param model_store: List of models returned by the def load_model_ensemble
     :param features_c_norm: ndarray of shape (1, -1). The columns represents the different features.
     :return: List of metrics.
     """
@@ -225,12 +230,12 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
         global iter_count, end
         iter_count = 0
         end = time.time()
+
         @use_named_args(space)
         def fitness(**params):
             global iter_count, end
             iter_count += 1
             start = time.time()
-            print(start-end)
 
             features = np.array([x for x in params.values()])
             x = features[0]
@@ -242,7 +247,6 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
 
             # SVM Check
             p_class, distance = svm_ensemble_prediction(svm_store, features[0:2])
-
             if distance.item() < 0:
                 # Distance should be negative value when SVM assigns class 0. Hence a_score will be negative.
                 # The more negative the a_score is, the further the composition is from the hyperplane,
@@ -253,9 +257,7 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
                 l2_dist_store.append(-1)
                 disagreement_store.append(-1)
             elif features[0] + features[1] > 1:
-                # Distance should be negative value when SVM assigns class 0. Hence a_score will be negative.
-                # The more negative the a_score is, the further the composition is from the hyperplane,
-                # hence, the less likely the optimizer will select examples with class 0.
+                # Sum of composition cannot be greater than 1
                 a_score = 10e5 * (1 - (features[0] + features[1]))
                 prediction_mean_store.append([-1] * fl.labels_dim)
                 prediction_std_store.append([-1] * fl.labels_dim)
@@ -278,7 +280,6 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
                 # Note: L2 distance is calculated using the normalised features so that all feature have the same weight
                 l2_distance = np.linalg.norm(x=fl.features_c_norm - features_input_norm.reshape((1, -1)), ord=2, axis=1)
                 l2_distance = np.min(l2_distance)  # Take the minimum L2 dist.
-
                 # Overall Acquisition Score. Higher score if l2 distance is larger and uncertainty (std) is larger.
                 disagreement = np.sum(prediction_std)
                 if ignore_distance:
@@ -295,15 +296,14 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
                 end = time.time()
                 if iter_count % 50 == 0:
                     print('Current Iteration: {} out of {} for batch {}. '.format(iter_count, total_run, batch + 1))
-            return -a_score
-
+            return -a_score  # -ve to maximise the a_score
 
         search_result = gp_minimize(func=fitness,
-                                        dimensions=space,
-                                        acq_func='EI',  # Expected Improvement.
-                                        n_calls=total_run,
-                                        n_random_starts=random_run,
-                                        verbose=False)
+                                    dimensions=space,
+                                    acq_func='EI',  # Expected Improvement.
+                                    n_calls=total_run,
+                                    n_random_starts=random_run,
+                                    verbose=False)
         '''
 
         search_result = dummy_minimize(func=fitness,
@@ -389,8 +389,9 @@ def acquisition_opt(bounds, model_directory, svm_directory, loader_file, total_r
         instance_end = time.time()
         print('Batch {} completed. Time taken: {}'.format(batch + 1, instance_end - instance_start))
 
+
 def acquisition_opt_pso_ga(bounds, write_dir, svm_directory, loader_file, normalise_labels, pso_params,
-                           batch_runs=1, initial_guess=None, norm_mask=None,):
+                           batch_runs=1, initial_guess=None, norm_mask=None, ):
     """
     bounds = [[5, 200, ],
               [0, 200, ],
@@ -420,13 +421,13 @@ def acquisition_opt_pso_ga(bounds, write_dir, svm_directory, loader_file, normal
     smin = [abs(x - y) * 0.001 for x, y in zip(pmin, pmax)]
     smax = [abs(x - y) * 0.5 for x, y in zip(pmin, pmax)]
 
-
     for batch, init_guess in zip(list(range(batch_runs)), initial_guess):
         instance_start = time.time()
         data_store = []
+
         def fitness(params):
             nonlocal data_store
-            #start = time.time()
+            # start = time.time()
             features = np.array(params)
             x = features[0]
             y = features[1]
@@ -443,19 +444,19 @@ def acquisition_opt_pso_ga(bounds, write_dir, svm_directory, loader_file, normal
                 # The more negative the a_score is, the further the composition is from the hyperplane,
                 # hence, the less likely the optimizer will select examples with class 0.
                 a_score = 10e5 * distance.item()
-                prediction_mean=[-1] * fl.labels_dim
-                prediction_std=[-1] * fl.labels_dim
-                l2_dist=-1
-                disagreement=-1
+                prediction_mean = [-1] * fl.labels_dim
+                prediction_std = [-1] * fl.labels_dim
+                l2_dist = -1
+                disagreement = -1
             elif features[0] + features[1] > 1:
                 # Distance should be negative value when SVM assigns class 0. Hence a_score will be negative.
                 # The more negative the a_score is, the further the composition is from the hyperplane,
                 # hence, the less likely the optimizer will select examples with class 0.
                 a_score = 10e5 * (1 - (features[0] + features[1]))
-                prediction_mean=[-1] * fl.labels_dim
-                prediction_std=[-1] * fl.labels_dim
-                l2_dist=-1
-                disagreement=-1
+                prediction_mean = [-1] * fl.labels_dim
+                prediction_std = [-1] * fl.labels_dim
+                l2_dist = -1
+                disagreement = -1
             else:
                 features_c = features[:-1]
                 onehot = features[-1].item()
@@ -479,26 +480,22 @@ def acquisition_opt_pso_ga(bounds, write_dir, svm_directory, loader_file, normal
                 a_score = l2_distance * disagreement
 
                 # Storing intermediate results into list to print into excel later
-                l2_dist=l2_distance
-                disagreement=disagreement
-                prediction_mean=prediction_mean.flatten().tolist()
-                prediction_std=prediction_std.flatten().tolist()
-            data =list(features) + [a_score, disagreement, l2_dist] + prediction_mean + prediction_std
+                l2_dist = l2_distance
+                disagreement = disagreement
+                prediction_mean = prediction_mean.flatten().tolist()
+                prediction_std = prediction_std.flatten().tolist()
+            data = list(features) + [a_score, disagreement, l2_dist] + prediction_mean + prediction_std
             data_store.append(data)
-            #end = time.time()
-            #print(end-start)
+            # end = time.time()
+            # print(end-start)
             return (-a_score,)
 
-        _,_,best = pso_ga(func=fitness, pmin=pmin, pmax=pmax,
-               smin=smin, smax=smax,
-               int_idx=[3], params=pso_params, ga=True, initial_guess=init_guess)
-
-
-
+        _, _, best = pso_ga(func=fitness, pmin=pmin, pmax=pmax,
+                            smin=smin, smax=smax,
+                            int_idx=[3], params=pso_params, ga=True, initial_guess=init_guess)
 
         p_mean_name = np.array(['Pmean_' + str(x) for x in list(map(str, np.arange(1, 4)))])
         p_std_name = np.array(['Pstd_' + str(x) for x in list(map(str, np.arange(1, 4)))])
-
 
         columns = np.concatenate((np.array(fl.features_c_names[:-2]),
                                   np.array(['A_score']),
@@ -514,14 +511,15 @@ def acquisition_opt_pso_ga(bounds, write_dir, svm_directory, loader_file, normal
         iter_df = iter_df.sort_values(by=['A_score'], ascending=False)
 
         # Creating new worksheet. Even if SNN worksheet already exists, a new SNN1 ws will be created and so on
-        wb.create_sheet(title='Batch_{}'.format(batch+1))
-        ws = wb['Batch_{}'.format(batch+1)]  # Taking the ws name from the back ensures that if SNN1 is the new ws, it works
+        wb.create_sheet(title='Batch_{}'.format(batch + 1))
+        ws = wb['Batch_{}'.format(
+            batch + 1)]  # Taking the ws name from the back ensures that if SNN1 is the new ws, it works
         print_df_to_excel(df=iter_df, ws=ws)
 
         # If batch_runs > 1, next batch will be calculated. The only difference is that the previous best trial point
         # with the highest a_score will be added to fl.features_c_norm such that the L2 greedy distance will
         # account for the fact that the previous batch would had contained the best example already.
-        #features = np.array(list(best))
+        # features = np.array(list(best))
         features = np.array(init_guess[0])
         features_c = features[:-1]
         onehot = features[-1].item()
@@ -541,57 +539,60 @@ def acquisition_opt_pso_ga(bounds, write_dir, svm_directory, loader_file, normal
         wb = openpyxl.load_workbook('{}/acq.xlsx'.format(write_dir))
 
 
-def l2_points_opt(numel, write_dir, svm_directory, seed_number_of_expt, total_expt):
+def l2_points_opt(numel, write_dir, svm_directory, seed_number_of_expt, total_expt, l2_opt=True):
     write_dir = create_results_directory(results_directory=write_dir, excels=['l2_acq'])
     svm_store = load_svm_ensemble(svm_directory)
     base = [x / (numel * 2 - 1) for x in list(range(numel * 2))]
+
+    # Create set of possible compositions
     compositions = [[x, y] if x + y <= 1 else [-x + 1, -y + 1] for x, y in
                     list(itertools.product(base[::2], base[1::2]))]
-
     distance_store = []
+    # Check feasibility for those compositions
     for model in svm_store:
         distance_store.append(model.model.decision_function(compositions))
-
     distance = np.mean(np.array(distance_store), axis=0)
     valid_compositions = [x for x, dist in zip(compositions, distance) if dist >= 0]
-
     print('Number of compositions = {}. % valid = {}%'.format(len(valid_compositions),
-                                                             len(valid_compositions) / len(compositions)*100))
-
+                                                              len(valid_compositions) / len(compositions) * 100))
+    # Permute feasible compositions with different thickness possibilities scaled from 0 to 1
     number_valid_compositions = round(math.sqrt(len(valid_compositions)))
     compositions_thickness = list(itertools.product(valid_compositions,
-                                                    [x / (number_valid_compositions- 1)
+                                                    [x / (number_valid_compositions - 1)
                                                      for x in list(range(number_valid_compositions))]))
-
-    print('Number of permutations = {}'.format(len(compositions_thickness*3)))
-
+    print('Number of permutations = {}'.format(len(compositions_thickness * 3)))
+    # Permute the above with 0D, 1D, and 2D
     all_permutations = np.array([x[0] + [x[1]] + y
                                  for x in compositions_thickness for y in [[1, 0, 0], [0, 1, 0], [0, 0, 1]]])
 
-    expt_idx = np.random.randint(0, len(all_permutations), seed_number_of_expt)
+    if l2_opt:
+        expt_idx = np.random.randint(0, len(all_permutations), seed_number_of_expt)
+        expt_store = all_permutations[expt_idx, :]
 
-    expt_store = all_permutations[expt_idx,:]
+        for i in range(total_expt - seed_number_of_expt):
+            start = time.time()
+            d = pairwise_distances(expt_store, all_permutations, metric='euclidean')
+            next_expt = np.argmax(np.min(d, axis=0))
+            expt_store = np.concatenate((expt_store, all_permutations[next_expt, None, :]), axis=0)
+            end = time.time()
+            print(
+                '{} out of {} completed. Time taken = {}.'.format(i + 1, total_expt - seed_number_of_expt, end - start))
+    else:
+        expt_idx = np.random.randint(0, len(all_permutations), total_expt)
+        expt_store = all_permutations[expt_idx, :]
 
-    for i in range(total_expt-seed_number_of_expt):
-        start = time.time()
-        d = pairwise_distances(expt_store, all_permutations, metric='euclidean')
-        next_expt = np.argmax(np.min(d, axis=0))
-        expt_store = np.concatenate((expt_store, all_permutations[next_expt, None, :]), axis=0)
-        end = time.time()
-        print('{} out of {} completed. Time taken = {}.'.format(i+1,total_expt-seed_number_of_expt, end-start))
-
-    expt_store[:,2] = expt_store[:,2]*2000
+    expt_store[:, 2] = expt_store[:, 2] * 1800 + 200
 
     write_excel = '{}/l2_acq.xlsx'.format(write_dir)
     wb = openpyxl.load_workbook(write_excel)
     wb.create_sheet('l2_acq')
     ws = wb[wb.sheetnames[-1]]
-    ws.cell(1,1).value = 'Valid Combinations'
-    ws.cell(1,2).value = len(all_permutations)
-    ws.cell(1,3).value = 'Seed Expt'
-    ws.cell(1,4).value = seed_number_of_expt
+    ws.cell(1, 1).value = 'Valid Combinations'
+    ws.cell(1, 2).value = len(all_permutations)
+    ws.cell(1, 3).value = 'Seed Expt'
+    ws.cell(1, 4).value = seed_number_of_expt
     df = pd.DataFrame(data=expt_store, columns=['CNT', 'PVA', 'Thickness', '0D', '1D', '2D'],
-                      index=list(range(1,total_expt+1)))
+                      index=list(range(1, total_expt + 1)))
     print_df_to_excel(df=df, ws=ws, start_row=2)
 
     wb.save(write_excel)

@@ -2,7 +2,7 @@ from own_package.analysis import l2_tracker, testset_prediction_results, testset
     testset_optimal_combination, save_testset_prediction, eval_combination_on_testset, save_valset_prediction,\
     features_correlation_analysis, training_curve_comparision
 from own_package.others import create_results_directory
-from own_package.models.models import create_hparams
+#from own_package.models.models import create_hparams
 
 
 def selector(case, **kwargs):

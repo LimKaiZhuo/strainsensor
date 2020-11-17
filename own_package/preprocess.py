@@ -309,12 +309,12 @@ def read_excel_data_to_spline(read_excel_file, write_dir, discrete_points, splin
             spline = PchipInterpolator(strain, r)
             linear_spline = interp1d(strain, r)
             # Getting GF for 20 points
-            gf = np.concatenate(
+            gf = np.minimum(np.concatenate(
                 (
                     (linear_spline.__call__(eval_x[:-1]+0.01)-linear_spline.__call__(eval_x[:-1]))*100/0.01,
                                 [(linear_spline.__call__(eval_x[-1])-linear_spline.__call__(eval_x[-1]-0.01))*100/0.01]
                 )
-            )
+            ), 1e6)
             # Store the processed labels. Labels for one example is 1d ndarray of
             # [End_point of strain curve, r1, r2, r3, ... , r_end]
             y_discrete = spline.__call__(eval_x)

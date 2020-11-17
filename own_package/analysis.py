@@ -5,14 +5,14 @@ import matplotlib as mpl
 import seaborn as sns
 import openpyxl
 import scipy.stats as stat
-import tensorflow as tf
-from tensorflow.python.keras import backend as K
-import gc
+# import tensorflow as tf
+# from tensorflow.python.keras import backend as K
+import gc, collections
 
-from own_package.models.models import Kmodel
+# from own_package.models.models import Kmodel
 from own_package.others import print_array_to_excel, print_df_to_excel, create_excel_file, create_results_directory
-from own_package.active_learning.acquisition import load_model_ensemble, model_ensemble_prediction, load_model_chunks
-from own_package.features_labels_setup import load_data_to_fl, load_testset_to_fl
+# from own_package.active_learning.acquisition import load_model_ensemble, model_ensemble_prediction, load_model_chunks
+# from own_package.features_labels_setup import load_data_to_fl, load_testset_to_fl
 import os, itertools, pickle
 from collections import defaultdict
 from deap import algorithms, base, creator, tools
@@ -366,11 +366,28 @@ def features_correlation_analysis(data_excel):
     mypal = sns.hls_palette(4, l=.3, s=.8)
 
     for dimension, df in enumerate([df1, df2, df3]):
-        df['Mxene Mass Percentage'] = 1-df.iloc[:,0]-df.iloc[:,1]
+        df['Mxene Mass Percentage'] = 1 - df.iloc[:, 0] - df.iloc[:, 1]
         for x, color in zip(x_store, mypal):
             plt.close()
             sns.jointplot(x=x, y='Working Range', data=df, alpha=0.3, color=color, stat_func=stat.pearsonr)
             plt.savefig('{}/{}_dim_{}.png'.format(write_dir, x, dimension), bbox_inches='tight')
+
+
+# data_excel = './Final Submission/8_Correlation Analysis Plots/G0 SENSOR.xlsx'
+# results_dir = './Final Submission/8_Correlation Analysis Plots'
+
+def s10_correlation_analysis(data_excel, results_dir):
+    master_df = pd.read_excel(data_excel)
+    feature_df = master_df.iloc[:, 1:5]
+    label_df = master_df.iloc[:, -3:]
+    results = {}
+    for feature in feature_df.columns:
+        results[feature] = collections.defaultdict()
+        for label in label_df.columns:
+            results[feature][label] = stat.pearsonr(feature_df[feature], label_df[label])
+        results[feature] = pd.DataFrame.from_dict(results[feature], orient='index', columns=['r', 'p'])
+    results = pd.concat(results, axis=1).T
+    results.to_excel(f'{results_dir}/pearson_results.xlsx')
 
 
 def training_curve_comparision(train_excel, val_excel, write_dir, hparams):
@@ -400,26 +417,26 @@ def training_curve_comparision(train_excel, val_excel, write_dir, hparams):
         sess.close()
         gc.collect()
 
-    #run_model(loss='mse', pre=100, epoch=500)
-    #run_model(loss='haitao', pre=100, epoch=500)
-    #run_model(loss='mse', pre=500, epoch=500)
-    #run_model(loss='haitao', pre=500, epoch=500)
-#
-    #run_model(loss='mse', pre=100, epoch=1000)
-    #run_model(loss='haitao', pre=100, epoch=1000)
-    #run_model(loss='mse', pre=500, epoch=1000)
-    #run_model(loss='haitao', pre=500, epoch=1000)
-#
-    #run_model(loss='mse', pre=100, epoch=5000)
-    #run_model(loss='haitao', pre=100, epoch=5000)
+    # run_model(loss='mse', pre=100, epoch=500)
+    # run_model(loss='haitao', pre=100, epoch=500)
+    # run_model(loss='mse', pre=500, epoch=500)
+    # run_model(loss='haitao', pre=500, epoch=500)
+    #
+    # run_model(loss='mse', pre=100, epoch=1000)
+    # run_model(loss='haitao', pre=100, epoch=1000)
+    # run_model(loss='mse', pre=500, epoch=1000)
+    # run_model(loss='haitao', pre=500, epoch=1000)
+    #
+    # run_model(loss='mse', pre=100, epoch=5000)
+    # run_model(loss='haitao', pre=100, epoch=5000)
     run_model(loss='mse', pre=500, epoch=5000)
     run_model(loss='haitao', pre=500, epoch=5000)
-    #run_model(loss='mse', pre=100, epoch=500)
-    #run_model(loss='mse', pre=100, epoch=500)
-    #run_model(loss='mse', pre=100, epoch=500)
-    #run_model(loss='mse', pre=100, epoch=500)
-    #run_model(loss='mse', pre=100, epoch=500)
-    #run_model(loss='mse', pre=100, epoch=500)
+    # run_model(loss='mse', pre=100, epoch=500)
+    # run_model(loss='mse', pre=100, epoch=500)
+    # run_model(loss='mse', pre=100, epoch=500)
+    # run_model(loss='mse', pre=100, epoch=500)
+    # run_model(loss='mse', pre=100, epoch=500)
+    # run_model(loss='mse', pre=100, epoch=500)
 
     wb = openpyxl.Workbook()
     wb.create_sheet('125train_loss')

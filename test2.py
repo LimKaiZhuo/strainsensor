@@ -26,7 +26,7 @@ def selector(case, **kwargs):
         wb.save(excel_dir)
         pass
     elif case == 2:
-        testset_excel_dir = './excel/ett_30testset_gf20.xlsx'
+        testset_excel_dir = './excel/ett_125trainset_gf20.xlsx'
         create_invariant_testset(testset_excel_dir=testset_excel_dir,
                                  numel=1)
         create_invariant_testset(testset_excel_dir=testset_excel_dir,
@@ -122,15 +122,15 @@ def selector(case, **kwargs):
             ['./results/hparam active learning/hparams_opt round 13 ann mse',
              './results/hparam active learning/hparams_opt round 13 DTR_weak_round_13']],
             excel_subname='overall_summary',
-            metric_cols=['Train MSE', 'Val MSE'],
+            metric_cols=['Train MRE', 'Val MRE'],
             weightage=[0, 1],
             results_excel_dir=excel_dir,
             top_models=3)
     elif case == 4.1:
-        excel_dir = create_excel_file('./results/DTR_ANN_NDA_top3_E3.xlsx')
+        excel_dir = create_excel_file('./results/DTR_deep_ANN_HE_round13_top3MRE_E3.xlsx')
         get_best_trial_from_rounds_custom_metric(dir_store=[
-            ['./results/hparams_opt round 13 DTR_weak_NDA_round_13',
-             './results/hparams_opt round 13 ann NDA HE',],
+            ['./results/hparams_opt round 13 ann NDA HE',
+             './results/hparams_opt round 13 DTR',],
         ],
             excel_subname='overall_summary',
             metric_cols=['Train MRE', 'Val MRE'],
@@ -155,4 +155,4 @@ def selector(case, **kwargs):
         pass
 
 
-selector(2, write_dir='./results/hparams_opt round 13 dtr invariant 10')
+selector(4.1, write_dir='./results/hparams_opt round 13 dtr invariant 10')

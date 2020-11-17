@@ -1,4 +1,5 @@
-from own_package.cross_validation import run_skf, run_skf_with_training_error, run_skf_train_val_test_error, run_eval_model_on_train_val_test_error
+from own_package.cross_validation import run_skf, run_skf_with_training_error, run_skf_train_val_test_error, \
+    run_eval_model_on_train_val_test_error
 from own_package.models.models import create_hparams
 from own_package.others import create_results_directory, create_excel_file
 from own_package.spline_analysis import plot_arcsinh_predicted_splines, plot_cutoff
@@ -7,6 +8,7 @@ from own_package.analysis import testset_model_results_to_excel
 from own_package.hparam_opt import read_hparam_data
 import openpyxl, os, pickle
 from own_package.active_learning.acquisition import load_model_ensemble
+
 
 def run_skf_conv1(inputs, plot_spline, smote_numel):
     shared, end, pre, filters, epochs, label_type = inputs
@@ -100,9 +102,10 @@ def run_skf_with_te(inputs_store, loader_excel, smote_numel, mode, name, learnin
 
         if eval_model_dir:
             val_score, train_score, data = run_eval_model_on_train_val_test_error(fl=fl,
-                                                                        fl_store=fl_store, test_fl=test_fl,
-                                                                        ett_fl_store=ett_fl_store,
-                                                                        model_name='hparams_opt_makeup',model=inputs,)
+                                                                                  fl_store=fl_store, test_fl=test_fl,
+                                                                                  ett_fl_store=ett_fl_store,
+                                                                                  model_name='hparams_opt_makeup',
+                                                                                  model=inputs, )
         else:
             pre, epochs = inputs
             hparams = create_hparams(shared_layers=[30, 30], ts_layers=[5, 5], cs_layers=[5, 5],
@@ -116,23 +119,25 @@ def run_skf_with_te(inputs_store, loader_excel, smote_numel, mode, name, learnin
             if mode == 'ann':
                 model_mode = 'ann3'
                 loss_mode = 'ann'
-            elif mode=='dtr':
+            elif mode == 'dtr':
                 model_mode = 'dtr'
                 loss_mode = 'dtr'
-
 
             val_score, train_score, data = run_skf_train_val_test_error(model_mode=model_mode, loss_mode=loss_mode,
                                                                         fl=fl,
                                                                         fl_store=fl_store, test_fl=test_fl,
                                                                         ett_fl_store=ett_fl_store,
                                                                         model_name='{}_{}_{}_{}'.format(write_dir,
-                                                                                                     model_mode, pre, epochs),
+                                                                                                        model_mode, pre,
+                                                                                                        epochs),
                                                                         hparams=hparams,
                                                                         k_folds=10, scoring='mse',
-                                                                        save_model_name='/{}_{}_{}'.format(mode, pre, epochs),
+                                                                        save_model_name='/{}_{}_{}'.format(mode, pre,
+                                                                                                           epochs),
                                                                         save_model=True,
                                                                         save_model_dir=write_dir + '/models',
-                                                                        plot_name='{}/{}'.format(write_dir, str(inputs)))
+                                                                        plot_name='{}/{}'.format(write_dir,
+                                                                                                 str(inputs)))
         ett_names = ['I01-1', 'I01-2', 'I01-3',
                      'I05-1', 'I05-2', 'I05-3',
                      'I10-1', 'I10-2', 'I10-3',
@@ -142,14 +147,12 @@ def run_skf_with_te(inputs_store, loader_excel, smote_numel, mode, name, learnin
         if eval_model_dir:
             data.append([1, 1])
         else:
-            data.append([pre,epochs])
+            data.append([pre, epochs])
         data_store.append(data)
         with open('{}/data_store.pkl'.format(write_dir), "wb") as file:
             pickle.dump(data_store, file)
     read_hparam_data(data_store=data_store, write_dir=write_dir, ett_names=ett_names, print_s_df=False,
                      trainset_ett_idx=-4)
-
-
 
 
 def run_skf_with_te_nofolds(inputs, plot_spline, smote_numel):
@@ -174,7 +177,7 @@ def run_skf_with_te_nofolds(inputs, plot_spline, smote_numel):
     else:
         fl_store = fl.create_kf(k_folds=10, shuffle=True)
 
-    run_skf_with_training_error(model_mode='ann3', loss_mode='ann', fl=fl, fl_store=[[fl,fl]], hparams=hparams,
+    run_skf_with_training_error(model_mode='ann3', loss_mode='ann', fl=fl, fl_store=[[fl, fl]], hparams=hparams,
                                 skf_file=write_dir + '/skf_results.xlsx',
                                 te_sheet=write_dir + '/te.xlsx',
                                 skf_sheet=None,
@@ -188,12 +191,13 @@ def run_skf_with_te_nofolds(inputs, plot_spline, smote_numel):
                                    testset_excel_dir='./excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
                                    fn=6, numel=3, chunks=10)
 
-#hparams_store = [[1000, 4000], [995, 3986], [1000, 4000], [1000, 4000], [1000, 4000]]
-#for hparam in hparams_store:
+
+# hparams_store = [[1000, 4000], [995, 3986], [1000, 4000], [1000, 4000], [1000, 4000]]
+# for hparam in hparams_store:
 #    inputs = [0, 0, hparam[0], 0, hparam[1], 'cutoff']
 #    write_dir = run_skf_with_te_nofolds(inputs, plot_spline=False, smote_numel=1100)
-#write_dir = run_skf_conv1(inputs, plot_spline=False, smote_numel=1050)
-round_store = [4,5,6,'6e',7,8,9,10,11,12,13]
+# write_dir = run_skf_conv1(inputs, plot_spline=False, smote_numel=1050)
+round_store = [4, 5, 6, '6e', 7, 8, 9, 10, 11, 12, 13]
 hparams_store = [[[235, 285], [374, 289], [427, 275]],
                  [[341, 27], [340, 29], [336, 25]],
                  [[179, 76], [491, 73], [111, 169]],
@@ -209,17 +213,17 @@ hparams_store = [[[235, 285], [374, 289], [427, 275]],
                  [[486, 432], [487, 174], [489, 249]],
                  [[235, 217], [302, 166], [424, 32]]]
 loader_excel_store = [
-                      './excel/Data_loader_spline_full_onehot_R4_cut_CM3.xlsx',
-                      './excel/Data_loader_spline_full_onehot_R5_cut_CM3.xlsx',
-                      './excel/Data_loader_spline_full_onehot_R6_cut_CM3.xlsx',
-                      './excel/Data_loader_spline_full_onehot_R6e_cut_CM3.xlsx',
-                      './excel/Data_loader_spline_full_onehot_R7_cut_CM3.xlsx',
-                      './excel/Data_loader_spline_full_onehot_R8_cut_CM3.xlsx',
-                      './excel/Data_loader_spline_full_onehot_R9_cut_CM3.xlsx',
-                      './excel/Data_loader_spline_full_onehot_R10_cut_CM3.xlsx',
-                      './excel/Data_loader_spline_full_onehot_R11_cut_CM3.xlsx',
-                      './excel/Data_loader_spline_full_onehot_R12_cut_CM3.xlsx',
-                      './excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',]
+    './excel/Data_loader_spline_full_onehot_R4_cut_CM3.xlsx',
+    './excel/Data_loader_spline_full_onehot_R5_cut_CM3.xlsx',
+    './excel/Data_loader_spline_full_onehot_R6_cut_CM3.xlsx',
+    './excel/Data_loader_spline_full_onehot_R6e_cut_CM3.xlsx',
+    './excel/Data_loader_spline_full_onehot_R7_cut_CM3.xlsx',
+    './excel/Data_loader_spline_full_onehot_R8_cut_CM3.xlsx',
+    './excel/Data_loader_spline_full_onehot_R9_cut_CM3.xlsx',
+    './excel/Data_loader_spline_full_onehot_R10_cut_CM3.xlsx',
+    './excel/Data_loader_spline_full_onehot_R11_cut_CM3.xlsx',
+    './excel/Data_loader_spline_full_onehot_R12_cut_CM3.xlsx',
+    './excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx', ]
 '''
 './excel/Data_loader_spline_full_onehot_R1_cut_CM3.xlsx',
                       './excel/Data_loader_spline_full_onehot_R2_cut_CM3.xlsx',
@@ -228,7 +232,7 @@ loader_excel_store = [
                  [[1000, 3446], [1000, 3964], [1000, 3985]],
                  [[39, 3223], [118, 2595], [128, 1861]],
 '''
-#hparams_store = [
+# hparams_store = [
 #                 [[1000, 400], [987,396]],
 #                 [[651, 3657], [278, 3564], [426, 3468]],
 #                 [[143, 3177], [120, 2988], [126, 3106]],
@@ -240,29 +244,28 @@ loader_excel_store = [
 #                 [[871, 2492], [593, 3548], [670, 2283]],
 #                 [[302, 7393], [259, 7412], [306, 7447]],
 #                 [[485, 3477], [474, 1791], [138, 5169]]]
-#hparams_store = [[[0.001, 300, 500, 'haitao'],[0.001, 600, 500, 'haitao']]]
-hparams_store = [
-                 [[485, 3477]],]
+# hparams_store = [[[0.001, 300, 500, 'haitao'],[0.001, 600, 500, 'haitao']]]
+hparams_store = [[8, 100],
+                 [7, 100],
+                 [8, 103], ]
 round_store = [13]
-#for round, hparam, loader_excel in zip(round_store, hparams_store, loader_excel_store):
-    #run_skf_with_te(hparam, './excel/Data_loader_spline_full_onehot_R13test_cut_CM3.xlsx',
-    #                smote_numel=None, mode='ann', name='{}_{}'.format('anntest_mse',round), loss='mse')
-    #run_skf_with_te(hparam, './excel/Data_loader_spline_full_onehot_R13test_cut_CM3.xlsx',
-    #                smote_numel=None, mode='ann', name='{}_{}'.format('anntest_mape', round), loss='mape')
-    #run_skf_with_te(hparam, './excel/Data_loader_spline_full_onehot_R13test_cut_CM3.xlsx',
-    #                smote_numel=None, mode='ann', name='{}_{}'.format('anntest_haitao', round), loss='haitao')
-    #run_skf_with_te(hparam, './excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
-    #                smote_numel=None, mode='ann', name='{}_{}'.format('ann_mse',round), loss='mse')
-    #run_skf_with_te(hparam, './excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
-    #                smote_numel=None, mode='ann', name='{}_{}'.format('ann_mape', round), loss='mape')
-    #run_skf_with_te(hparam, loader_excel,
-    #                smote_numel=None, mode='ann', name='{}_{}'.format('ann_mse_round_test', round), learningrate=0.001/2)
-    #run_skf_with_te([[378,1], [114,1], [124,98]], './excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
-    #                smote_numel=None, mode='dtr', name='{}_{}'.format('dtr_makeup_round', round),)
+# for round, hparam, loader_excel in zip(round_store, hparams_store, loader_excel_store):
+# run_skf_with_te(hparam, './excel/Data_loader_spline_full_onehot_R13test_cut_CM3.xlsx',
+#                smote_numel=None, mode='ann', name='{}_{}'.format('anntest_mse',round), loss='mse')
+# run_skf_with_te(hparam, './excel/Data_loader_spline_full_onehot_R13test_cut_CM3.xlsx',
+#                smote_numel=None, mode='ann', name='{}_{}'.format('anntest_mape', round), loss='mape')
+# run_skf_with_te(hparam, './excel/Data_loader_spline_full_onehot_R13test_cut_CM3.xlsx',
+#                smote_numel=None, mode='ann', name='{}_{}'.format('anntest_haitao', round), loss='haitao')
+# run_skf_with_te(hparam, './excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
+#                smote_numel=None, mode='ann', name='{}_{}'.format('ann_mse',round), loss='mse')
+# run_skf_with_te(hparam, './excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
+#                smote_numel=None, mode='ann', name='{}_{}'.format('ann_mape', round), loss='mape')
+# run_skf_with_te(hparam, loader_excel,
+#                smote_numel=None, mode='ann', name='{}_{}'.format('ann_mse_round_test', round), learningrate=0.001/2)
+# run_skf_with_te([[378,1], [114,1], [124,98]], './excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
+#                smote_numel=None, mode='dtr', name='{}_{}'.format('dtr_makeup_round', round),)
 # plot_predicted_splines(write_dir='./results/skf10 archsinh', excel_dir='./results/skf10 archsinh/skf_results.xlsx', sheets=['conv1'], fn=6)
 # './excel/smote_1.xlsx'
-run_skf_with_te([1], './excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
-                eval_model_dir='./results/inverse_design/models',
-                smote_numel=None, mode='dtr', name='{}'.format('dtr_makeup_round'),)
-
-
+run_skf_with_te(hparams_store, './excel/Data_loader_spline_full_onehot_R13_cut_CM3.xlsx',
+                eval_model_dir=None,
+                smote_numel=None, mode='dtr', name='{}'.format('dtr round 13'), )

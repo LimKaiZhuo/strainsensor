@@ -1,8 +1,8 @@
 from own_package.active_learning.acquisition import acquisition_opt, l2_points_opt, acquisition_opt_pso_ga
 from own_package.spline_analysis import plot_acq_splines
 from own_package.others import create_results_directory
-from own_package.EXP_acquisition import variance_error_experiement
-from own_package.models.models import create_hparams
+#from own_package.EXP_acquisition import variance_error_experiement
+#from own_package.models.models import create_hparams
 
 bounds = [[0, 1],
           [0, 1],
@@ -65,7 +65,7 @@ def selector(run, **kwargs):
         seed_number_expt = kwargs['seed_number_expt']
         total_expt = kwargs['total_expt']
         write_dir = kwargs['write_dir']
-        l2_points_opt(numel=numel, write_dir=write_dir, svm_directory=svm_store,
+        l2_points_opt(numel=numel, write_dir=write_dir, svm_directory=svm_store, l2_opt=False,
                       seed_number_of_expt=seed_number_expt, total_expt=total_expt)
 
 
@@ -83,12 +83,12 @@ def selector(run, **kwargs):
 [[0.0,0.165,1990,2]]]
 '''
 
-# selector(4,numel=210, write_dir='./results/l2 acq', svm_store='./results/svm gamma130/models', seed_number_expt=5, total_expt=30)
-selector(1, write_dir='./results/ann_mse_round_2', round=2, batch=1, initial_guess=[[[0, 0.17, 2000, 0]],
-                                                                            [[0.52, 0.39, 1980, 0]],
-                                                                            [[0.0, 0.17, 1440, 0]],
-                                                                            [[0.96, 0.04, 200, 2]],
-                                                                            [[0.0, 0.165, 1990, 2]]])
+selector(4,numel=210, write_dir='./results/l2 acq', svm_store='./results/svm gamma 130 with proba - 2/models', seed_number_expt=5, total_expt=300)
+#selector(1, write_dir='./results/ann_mse_round_2', round=2, batch=1, initial_guess=[[[0, 0.17, 2000, 0]],
+#                                                                            [[0.52, 0.39, 1980, 0]],
+#                                                                            [[0.0, 0.17, 1440, 0]],
+#                                                                            [[0.96, 0.04, 200, 2]],
+#                                                                            [[0.0, 0.165, 1990, 2]]])
 # selector(1.1, write_dir='./results/dtr_2', round=2, batch=5)
 # selector(1.1, write_dir='./results/dtr_3', round=3, batch=8)
 # selector(1.1, write_dir='./results/dtr_4', round=4, batch=8)

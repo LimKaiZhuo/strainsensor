@@ -5,10 +5,12 @@ import openpyxl
 from own_package.others import create_excel_file, print_df_to_excel
 import six
 import sys
+
 sys.modules['sklearn.externals.six'] = six
 from imblearn.over_sampling import SMOTE
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import StratifiedKFold, KFold, LeaveOneOut
+
 
 def produce_invariant(features, labels, numel):
     feature_store = []
@@ -16,9 +18,9 @@ def produce_invariant(features, labels, numel):
     for feature, label in zip(features.tolist(), labels.tolist()):
         for _ in range(numel):
             new_feature = feature[:]
-            rand = [random.uniform(-1,1) for _ in range(3)]
+            rand = [random.uniform(-1, 1) for _ in range(3)]
             for idx, (x, r, c) in enumerate(zip(feature, rand, [0.02, 0.02, 5])):
-                new_x = x + r*c
+                new_x = x + r * c
                 new_feature[idx] = max(new_x, 0)
                 pass
             feature_store.append(new_feature)
@@ -27,9 +29,9 @@ def produce_invariant(features, labels, numel):
 
 
 def create_invariant_testset(testset_excel_dir, numel):
-    df = pd.read_excel(testset_excel_dir, index_col=0)
+    df = pd.read_excel(testset_excel_dir, index_col=0, sheet_name='Sheet')
 
-    features, labels = produce_invariant(features=df.values[:,:6], labels=df.values[:,6:], numel=numel)
+    features, labels = produce_invariant(features=df.values[:, :6], labels=df.values[:, 6:], numel=numel)
     new_data = np.concatenate((features, labels), axis=1)
     columns = df.columns
     new_df = pd.DataFrame(data=new_data, columns=columns)
@@ -42,46 +44,45 @@ def create_invariant_testset(testset_excel_dir, numel):
     print_df_to_excel(df=df, ws=ws)
     wb.save(write_excel)
 
+
 def produce_smote(features, labels, numel):
     '''
     Features should contain only composition and thickness. SMOTE for each dimension separately
     '''
-    feaColums = features
     data_store = []
-    for colidx in [-3,-2,-1]:
-        dim_idx = np.where(features[:,colidx]==1)[0]
-        data_store.append(np.concatenate((features[dim_idx,:-3], labels[dim_idx,:]),axis=1))
+    for colidx in [-3, -2, -1]:
+        dim_idx = np.where(features[:, colidx] == 1)[0]
+        data_store.append(np.concatenate((features[dim_idx, :-3], labels[dim_idx, :]), axis=1))
 
     data_smote_all = []
     for dim, data2Del in enumerate(data_store):
         ind_list = [i for i in range(data2Del.shape[0])]
-        ind_set = list(itertools.combinations(ind_list,3))
+        ind_set = list(itertools.combinations(ind_list, 3))
         num_original = len(ind_list)
         iter_required = int(numel / (num_original - 3))
         num_comb = len(ind_set)
         jump = int(num_comb / iter_required)
-        model_smote = SMOTE(k_neighbors= 2 ,random_state=0)
-
+        model_smote = SMOTE(k_neighbors=2, random_state=0)
         data_smote_all_single_dim = []
 
-        for i in range(0,num_comb, jump):
+        for i in range(0, num_comb, jump):
             item = ind_set[i]
             ind_ = list(item)
             y_smote = np.zeros(data2Del.shape[0])
             y_smote[ind_] = 1
-            data_smote_resampled , y_smote_resampled = model_smote.fit_resample(np.array(data2Del) , y_smote)
+            data_smote_resampled, y_smote_resampled = model_smote.fit_resample(np.array(data2Del), y_smote)
             ind = np.where(y_smote_resampled == 1)
             data_ = data_smote_resampled[ind].tolist()
             data_smote_all_single_dim.extend(data_)
 
-        dim_features = [0,0,0]
+        dim_features = [0, 0, 0]
         dim_features[dim] = 1
         data_smote_all_single_dim = [data[:-3] + dim_features + data[-3:] for data in data_smote_all_single_dim]
         data_smote_all.extend(data_smote_all_single_dim)
 
     data_smote_all = np.unique(np.array(data_smote_all), axis=0)
     # Split features and labels
-    return data_smote_all[:,:features.shape[1]], data_smote_all[:,features.shape[1]:]
+    return data_smote_all[:, :features.shape[1]], data_smote_all[:, features.shape[1]:]
 
 
 def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_mask=None):
@@ -125,14 +126,14 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
 
     if label_type == 'points':
         labels = df_labels.values
-        labels_end = labels[:,0][:,None]  # Make 2D array
-        labels = labels[:,2:]
+        labels_end = labels[:, 0][:, None]  # Make 2D array
+        labels = labels[:, 2:]
         labels_names = df_labels.columns.values
     elif label_type == 'cutoff':
         labels = df_labels.values
         labels_names = df_labels.columns.values
-        labels_end = labels[:,-1][:,None]
-        remove_idx = np.where(labels[:,0]==-1)[0]
+        labels_end = labels[:, -1][:, None]
+        remove_idx = np.where(labels[:, 0] == -1)[0]
         labels = np.delete(labels, remove_idx, axis=0)
         labels_end = np.delete(labels_end, remove_idx, axis=0)
         features_c = np.delete(features_c, remove_idx, axis=0)
@@ -150,8 +151,10 @@ def load_data_to_fl(data_loader_excel_file, normalise_labels, label_type, norm_m
 
 
 class Features_labels:
-    def __init__(self, features_c, labels_end, labels, label_type, features_c_names=None, labels_names=None, scaler=None,
-                 norm_mask=None, normalise_labels=False, labels_scaler=None, labels_end_scaler=None, labels_classification=None,
+    def __init__(self, features_c, labels_end, labels, label_type, features_c_names=None, labels_names=None,
+                 scaler=None,
+                 norm_mask=None, normalise_labels=False, labels_scaler=None, labels_end_scaler=None,
+                 labels_classification=None,
                  idx=None, features_d_df=None,
                  lookup_df=None):
         """
@@ -290,11 +293,14 @@ class Features_labels:
                 (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
                                  labels_classification=yclasstrain,
-                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names, label_type=self.label_type),
-                 Features_labels(xval, yendval, yval, idx=xval_idx, scaler=self.scaler, normalise_labels=self.normalise_labels,
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,
+                                 label_type=self.label_type),
+                 Features_labels(xval, yendval, yval, idx=xval_idx, scaler=self.scaler,
+                                 normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
                                  labels_classification=yclassval,
-                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names, label_type=self.label_type))
+                                 norm_mask=self.norm_mask, features_c_names=self.features_c_names,
+                                 label_type=self.label_type))
             )
         return fl_store
 
@@ -308,8 +314,8 @@ class Features_labels:
         """
         smote = pd.read_excel(smote_excel, index_col=0).values
         smote_features = smote[:, :6]
-        smote_labels = smote[:,6:]
-        smote_end = smote_labels[:,-1][:, None]  # Make 2D array
+        smote_labels = smote[:, 6:]
+        smote_end = smote_labels[:, -1][:, None]  # Make 2D array
         fl_store = []
         # Instantiate the cross validator
         skf = KFold(n_splits=k_folds, shuffle=shuffle)
@@ -317,9 +323,11 @@ class Features_labels:
         for _, (train_indices, val_indices) in enumerate(skf.split(self.features_c, self.labels)):
             # Generate batches from indices
             xval_idx = self.idx[val_indices]
-            xtrain, xval = np.concatenate((self.features_c[train_indices], smote_features), axis=0), self.features_c[val_indices]
+            xtrain, xval = np.concatenate((self.features_c[train_indices], smote_features), axis=0), self.features_c[
+                val_indices]
             ytrain, yval = np.concatenate((self.labels[train_indices], smote_labels), axis=0), self.labels[val_indices]
-            yendtrain, yendval = np.concatenate((self.labels_end[train_indices], smote_end), axis=0), self.labels_end[val_indices]
+            yendtrain, yendval = np.concatenate((self.labels_end[train_indices], smote_end), axis=0), self.labels_end[
+                val_indices]
             fl_store.append(
                 (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
@@ -350,10 +358,12 @@ class Features_labels:
             xval_idx = self.idx[val_indices]
             smote_features, smote_labels = produce_smote(self.features_c[train_indices],
                                                          self.labels[train_indices], numel=numel)
-            smote_end = smote_labels[:,None,-1]
-            xtrain, xval = np.concatenate((self.features_c[train_indices], smote_features), axis=0), self.features_c[val_indices]
+            smote_end = smote_labels[:, None, -1]
+            xtrain, xval = np.concatenate((self.features_c[train_indices], smote_features), axis=0), self.features_c[
+                val_indices]
             ytrain, yval = np.concatenate((self.labels[train_indices], smote_labels), axis=0), self.labels[val_indices]
-            yendtrain, yendval = np.concatenate((self.labels_end[train_indices], smote_end), axis=0), self.labels_end[val_indices]
+            yendtrain, yendval = np.concatenate((self.labels_end[train_indices], smote_end), axis=0), self.labels_end[
+                val_indices]
             fl_store.append(
                 (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,
@@ -383,11 +393,13 @@ class Features_labels:
             # Generate batches from indices
             xval_idx = self.idx[val_indices]
             smote_features, smote_labels = produce_invariant(self.features_c[train_indices],
-                                                         self.labels[train_indices], numel=numel)
-            smote_end = smote_labels[:,None,-1]
-            xtrain, xval = np.concatenate((self.features_c[train_indices], smote_features), axis=0), self.features_c[val_indices]
+                                                             self.labels[train_indices], numel=numel)
+            smote_end = smote_labels[:, None, -1]
+            xtrain, xval = np.concatenate((self.features_c[train_indices], smote_features), axis=0), self.features_c[
+                val_indices]
             ytrain, yval = np.concatenate((self.labels[train_indices], smote_labels), axis=0), self.labels[val_indices]
-            yendtrain, yendval = np.concatenate((self.labels_end[train_indices], smote_end), axis=0), self.labels_end[val_indices]
+            yendtrain, yendval = np.concatenate((self.labels_end[train_indices], smote_end), axis=0), self.labels_end[
+                val_indices]
             fl_store.append(
                 (Features_labels(xtrain, yendtrain, ytrain, scaler=self.scaler, normalise_labels=self.normalise_labels,
                                  labels_scaler=self.labels_scaler, labels_end_scaler=self.labels_end_scaler,

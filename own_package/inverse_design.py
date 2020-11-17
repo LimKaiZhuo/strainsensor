@@ -12,7 +12,7 @@ from own_package.active_learning.acquisition import load_svm_ensemble, svm_ensem
     model_ensemble_prediction
 
 
-def inverse_design(targets, bounds, int_idx, init_guess, model_directory_store, svm_directory, loader_file, write_dir,
+def inverse_design(targets, loss_func, bounds, int_idx, init_guess, model_directory_store, svm_directory, loader_file, write_dir,
                    opt_mode):
     model_store = []
     for model_directory in model_directory_store:
@@ -60,10 +60,9 @@ def inverse_design(targets, bounds, int_idx, init_guess, model_directory_store, 
                     features_in = np.concatenate((features_c, np.array([0, 1, 0])))
                 elif onehot == 2:
                     features_in = np.concatenate((features_c, np.array([0, 0, 1])))
-
                 features_input_norm = fl.apply_scaling(features_in)
                 prediction_mean, prediction_std = model_ensemble_prediction(model_store, features_input_norm)
-                mse = -np.mean((targets - prediction_mean) ** 2)
+                mse = -loss_func(targets, prediction_mean)
                 disagreement = np.mean(prediction_std)
                 prediction_mean = prediction_mean.tolist()
                 prediction_std = prediction_std.tolist()
@@ -87,6 +86,7 @@ def inverse_design(targets, bounds, int_idx, init_guess, model_directory_store, 
         pso_ga(func=fitness, pmin=pmin, pmax=pmax,
                smin=smin, smax=smax,
                int_idx=[3], params=pso_params, ga=True, initial_guess=init_guess)
+
     elif opt_mode == 'forest' or opt_mode == 'dummy':
         space = [Real(low=bounds[0][0], high=bounds[0][1], name='CNT'),
                  Real(low=bounds[1][0], high=bounds[1][1], name='PVA'),
@@ -107,10 +107,8 @@ def inverse_design(targets, bounds, int_idx, init_guess, model_directory_store, 
                 u = -y + 1
                 v = -x + 1
                 features[0:2] = np.array([u, v])
-
             # SVM Check
             p_class, distance = svm_ensemble_prediction(svm_store, features[0:2])
-
             if distance.item() < 0:
                 # Distance should be negative value when SVM assigns class 0. Hence a_score will be negative.
                 # The more negative the a_score is, the further the composition is from the hyperplane,
@@ -120,9 +118,7 @@ def inverse_design(targets, bounds, int_idx, init_guess, model_directory_store, 
                 prediction_std = [-1] * fl.labels_dim
                 disagreement = -1
             elif features[0] + features[1] > 1:
-                # Distance should be negative value when SVM assigns class 0. Hence a_score will be negative.
-                # The more negative the a_score is, the further the composition is from the hyperplane,
-                # hence, the less likely the optimizer will select examples with class 0.
+                # Sum of composition needs to be less than 1
                 mse = 10e5 * (1 - (features[0] + features[1]))
                 prediction_mean = [-1] * fl.labels_dim
                 prediction_std = [-1] * fl.labels_dim
@@ -136,10 +132,9 @@ def inverse_design(targets, bounds, int_idx, init_guess, model_directory_store, 
                     features_in = np.concatenate((features_c, np.array([0, 1, 0])))
                 elif onehot == 2:
                     features_in = np.concatenate((features_c, np.array([0, 0, 1])))
-
                 features_input_norm = fl.apply_scaling(features_in)
                 prediction_mean, prediction_std = model_ensemble_prediction(model_store, features_input_norm)
-                mse = -np.mean((targets - prediction_mean) ** 2)
+                mse = -loss_func(targets, prediction_mean)  # Some negative number
                 disagreement = np.mean(prediction_std)
                 prediction_mean = prediction_mean.tolist()
                 prediction_std = prediction_std.tolist()
@@ -150,7 +145,7 @@ def inverse_design(targets, bounds, int_idx, init_guess, model_directory_store, 
                 end = time.time()
                 print('Current Iteration {}. Time taken for past 10 evals: {}. '.format(iter_count, end-start))
                 start = time.time()
-            return -mse
+            return -mse  # Make negative become positive, and minimizing score towards 0.
 
         if opt_mode == 'forest':
             forest_minimize(func=fitness,

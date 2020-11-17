@@ -8,7 +8,16 @@ def selector(case, **kwargs):
                   [0, 1],
                   [200, 2000],
                   [0, 2]]
-        inverse_design(targets=np.array([0.1,0.8,7.5]), bounds=bounds, int_idx=[3], init_guess=None,
+        def loss_func(targets, pred):
+            if pred[-1]>30:
+                indicator=0
+            else:
+                indicator=1e6
+            return np.mean(((targets-pred)*np.array([0,1,indicator]))**2)
+
+
+        inverse_design(targets=np.array([2,8,60]), loss_func=loss_func,
+                       bounds=bounds, int_idx=[3], init_guess=None,
                        opt_mode='dummy',
                        model_directory_store=['./results/inverse_design/models/ann invariant',
                                            './results/inverse_design/models/ann NDA',
